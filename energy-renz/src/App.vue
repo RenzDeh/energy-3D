@@ -6,7 +6,7 @@ import BasicWindmill from './components/BasicWindmill.vue'
 
 <template>
   <TresCanvas
-    clear-color="#82DBC5"
+    clear-color="#a8d8f0"
     window-size
   >
     <BasicWindmill />
