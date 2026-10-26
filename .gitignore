@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Environment variables (only the examples are committed)
+.env
+.env.*
+!.env.example
+
+# Firebase service accounts and credentials
+*serviceAccount*.json
+*service-account*.json
+*-firebase-adminsdk-*.json
+GoogleService-Info.plist
+google-services.json
+*.p8
+
+# Build output and caches
+dist/
+coverage/
+*.tsbuildinfo
+
+# OS
+.DS_Store

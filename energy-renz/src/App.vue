@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { TresCanvas } from '@tresjs/core'
+import BasicWindmill from './components/BasicWindmill.vue'
 
-import TheExperience from './components/TheExperience.vue'
 </script>
 
 <template>
@@ -9,6 +9,6 @@ import TheExperience from './components/TheExperience.vue'
     clear-color="#82DBC5"
     window-size
   >
-    <TheExperience />
+    <BasicWindmill />
   </TresCanvas>
 </template>
