@@ -34,7 +34,10 @@ const props = withDefaults(defineProps<{
   /** Extra details (tipwervels, anemometer) enkel voor de hoofdmolen */
   detailed?: boolean
   wakeColor?: string
+  /** Schaal van de rotor (bladlengte) ten opzichte van de standaardmolen */
+  rotorScale?: number
 }>(), {
+  rotorScale: 1,
   feathered: false,
   gustiness: 0.1,
   night: false,
@@ -182,7 +185,7 @@ onUnmounted(() => bladeMaterial.dispose())
         </TresGroup>
 
         <!-- Rotor: naaf, spinner en 3 bladen -->
-        <TresGroup ref="rotorRef" :position="[0, 1.05, HUB_Z]" :rotation="[0, 0, phase]">
+        <TresGroup ref="rotorRef" :position="[0, 1.05, HUB_Z]" :rotation="[0, 0, phase]" :scale="[rotorScale, rotorScale, rotorScale]">
           <TresMesh :geometry="g.hubRing" :material="m.shell" :position="[0, 0, -0.2]" cast-shadow />
           <TresMesh :geometry="g.spinner" :material="m.shell" :position="[0, 0, 0.05]" cast-shadow />
           <TresGroup v-for="(a, i) in bladeAngles" :key="i" :rotation="[0, 0, a]">
@@ -197,7 +200,7 @@ onUnmounted(() => bladeMaterial.dispose())
         <TipVortices
           v-if="detailed"
           :rotor="rotor"
-          :radius="BLADE_LENGTH * 0.98"
+          :radius="BLADE_LENGTH * 0.98 * rotorScale"
           :hub-y="1.05"
           :hub-z="HUB_Z"
           :color="wakeColor"

@@ -3,7 +3,9 @@ import { OrbitControls } from '@tresjs/cientos'
 import { useTres } from '@tresjs/core'
 import { computed, watchEffect } from 'vue'
 import { Fog } from 'three'
+import { useEnergy } from '../composables/useEnergy'
 import { useEnvironment } from '../composables/useEnvironment'
+import { useMarket } from '../composables/useMarket'
 import { useWindData } from '../composables/useWindData'
 import { PARK_TURBINES } from '../lib/scenery'
 import { rotorRpm, turbineState, windVector } from '../lib/turbine'
@@ -11,6 +13,7 @@ import Clouds from './Clouds.vue'
 import Grass from './Grass.vue'
 import Kortrijk from './Kortrijk.vue'
 import Ground from './Ground.vue'
+import PowerLines from './PowerLines.vue'
 import Rain from './Rain.vue'
 import SkyDome from './SkyDome.vue'
 import Trees from './Trees.vue'
@@ -20,6 +23,11 @@ import Windmill from './Windmill.vue'
 
 const { wind } = useWindData()
 const { colors, light, ambient, daylight, sunDir } = useEnvironment()
+const { kw, ratedKw, cityShare, turbineCount, rotorScale } = useEnergy()
+// Enkel zoveel parkmolens als ingesteld (de hoofdmolen staat er altijd)
+const parkTurbines = computed(() => PARK_TURBINES.slice(0, turbineCount.value - 1))
+const { priceLevel } = useMarket()
+const load = computed(() => (ratedKw.value ? kw.value / ratedKw.value : 0))
 
 // De turbine reageert op de wind op ashoogte, het gras en de strepen op de wind dichtbij de grond
 const hubSpeed = computed(() => wind.value.speed100)
@@ -89,7 +97,8 @@ const streakColor = computed(() => (night.value ? '#8fb3ff' : '#ffffff'))
   <Ground />
   <Grass :wind-speed="wind.speed10" :wind-dir="blowing" />
   <Trees :wind-speed="wind.speed10" :wind-dir="blowing" />
-  <Kortrijk :night="night" />
+  <Kortrijk :night="night" :share="cityShare" />
+  <PowerLines :load="load" :turbines="turbineCount" :price-level="priceLevel" />
   <Clouds
     :wind-speed="wind.speed10"
     :wind-dir="blowing"
@@ -106,10 +115,11 @@ const streakColor = computed(() => (night.value ? '#8fb3ff' : '#ffffff'))
     :gustiness="gustiness"
     :night="night"
     :wake-color="streakColor"
+    :rotor-scale="rotorScale"
     detailed
   />
   <Windmill
-    v-for="t in PARK_TURBINES"
+    v-for="t in parkTurbines"
     :key="t.x"
     :rpm="rpm"
     :yaw-deg="yawDeg"
@@ -120,6 +130,7 @@ const streakColor = computed(() => (night.value ? '#8fb3ff' : '#ffffff'))
     :position="[t.x, t.y, t.z]"
     :scale="t.scale"
     :phase="t.phase"
+    :rotor-scale="rotorScale"
   />
 
   <WindStreaks :wind-speed="wind.speed10" :wind-dir="blowing" :yaw-deg="yawDeg" :color="streakColor" />

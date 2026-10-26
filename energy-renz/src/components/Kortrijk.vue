@@ -11,6 +11,7 @@ import {
   CylinderGeometry,
   ExtrudeGeometry,
   InstancedMesh,
+  MeshBasicMaterial,
   MeshStandardMaterial,
   Object3D,
   Shape,
@@ -21,7 +22,11 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { BELFORT, BROEL, CHURCH, LANDMARKS, PENTA, houses } from '../lib/kortrijk'
 import { RIVER, WATER_LEVEL } from '../lib/terrain'
 
-const props = defineProps<{ night: boolean }>()
+const props = defineProps<{
+  night: boolean
+  /** Aandeel van de gezinnen dat door het windpark van stroom voorzien wordt (0..1) */
+  share: number
+}>()
 
 const disposables: { dispose: () => void }[] = []
 function keep<T extends { dispose: () => void }>(item: T): T {
@@ -221,6 +226,31 @@ roofs.computeBoundingSphere()
 keep(bodies)
 keep(roofs)
 
+// Ramen: een band aan voor- en achtergevel die oplicht als het huis stroom van de molens krijgt
+const windowGeometry = keep(new BoxGeometry(0.72, 0.2, 1.02).translate(0, 0.62, 0))
+const windowMat = keep(new MeshBasicMaterial({ toneMapped: false }))
+const windows = keep(new InstancedMesh(windowGeometry, windowMat, list.length))
+list.forEach((h, i) => {
+  dummy.position.set(h.x, h.y - 0.2, h.z)
+  dummy.rotation.set(0, h.angle, 0)
+  dummy.scale.set(h.w, h.h + 0.2, h.d)
+  dummy.updateMatrix()
+  windows.setMatrixAt(i, dummy.matrix)
+})
+windows.computeBoundingSphere()
+// Willekeurige volgorde waarin de huizen aangaan
+const lightOrder = list.map((_, i) => i).sort(() => Math.random() - 0.5)
+const LIT = new Color('#ffd27a').multiplyScalar(1.6)
+const UNLIT = new Color('#2b3036')
+let litCount = -1
+function updateWindows(count: number) {
+  if (count === litCount) return
+  litCount = count
+  lightOrder.forEach((house, rank) => windows.setColorAt(house, rank < count ? LIT : UNLIT))
+  windows.instanceColor!.needsUpdate = true
+}
+updateWindows(0)
+
 // --- De Leie: een waterlint dat de meander van de bedding volgt ---
 const water = keep((() => {
   const perp = { x: -RIVER.dir.z, z: RIVER.dir.x }
@@ -246,9 +276,11 @@ const water = keep((() => {
   return g
 })())
 
-// 's Avonds gaan de lichten in The Penta aan
+// Lichten in de stad volgen de stroom van het windpark (en zijn 's avonds feller in The Penta)
 useLoop().onBeforeRender(() => {
-  const target = props.night ? 1.2 : 0
+  updateWindows(Math.round(props.share * list.length))
+  // The Penta haalt zijn stroom ook uit het park
+  const target = props.share * (props.night ? 1.4 : 0.3)
   mat.glass.emissiveIntensity += (target - mat.glass.emissiveIntensity) * 0.05
 })
 
@@ -287,6 +319,7 @@ onUnmounted(() => disposables.forEach(d => d.dispose()))
 
     <primitive :object="bodies" />
     <primitive :object="roofs" />
+    <primitive :object="windows" />
     <TresMesh :geometry="water" :material="mat.water" receive-shadow />
 
     <Html

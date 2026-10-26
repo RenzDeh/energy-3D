@@ -9,8 +9,13 @@ const FALLBACK_SPEED = 6
 export interface ForecastPoint {
   /** Lokale tijd, bv. "14:00" */
   time: string
+  /** Volledige lokale tijd, bv. "2026-10-26T14:00" */
+  iso: string
   speed10: number
   speed100: number
+  directionDeg: number
+  cloudCover: number
+  precipitation: number
 }
 
 export interface WindData {
@@ -49,6 +54,9 @@ interface OpenMeteoResponse {
     time: string[]
     wind_speed_10m: (number | null)[]
     wind_speed_100m: (number | null)[]
+    wind_direction_10m: (number | null)[]
+    cloud_cover: (number | null)[]
+    precipitation: (number | null)[]
   }
 }
 
@@ -56,7 +64,7 @@ const API_URL = `https://api.open-meteo.com/v1/forecast?${new URLSearchParams({
   latitude: String(LOCATION.latitude),
   longitude: String(LOCATION.longitude),
   current: 'wind_speed_10m,wind_direction_10m,wind_gusts_10m,temperature_2m,is_day,cloud_cover,precipitation',
-  hourly: 'wind_speed_10m,wind_speed_100m',
+  hourly: 'wind_speed_10m,wind_speed_100m,wind_direction_10m,cloud_cover,precipitation',
   wind_speed_unit: 'ms',
   timezone: 'Europe/Brussels',
   forecast_days: '2',
@@ -81,8 +89,13 @@ function forecastFrom(time: string, hourly: OpenMeteoResponse['hourly']): Foreca
     if (speed10 == null) continue
     points.push({
       time: hourly.time[i].slice(11, 16),
+      iso: hourly.time[i],
       speed10,
       speed100: hourly.wind_speed_100m[i] ?? speed10 * 1.35,
+      directionDeg: hourly.wind_direction_10m[i] ?? 225,
+      cloudCover: hourly.cloud_cover[i] ?? 30,
+      // Uurlijkse neerslag omzetten naar mm per kwartier, zoals de huidige meting
+      precipitation: (hourly.precipitation[i] ?? 0) / 4,
     })
   }
   return points
@@ -139,6 +152,8 @@ const live = shallowRef<WindData | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
 const simulation = ref<Simulation | null>(readOverride())
+/** Afspelen van de verwachting: aantal uren na het eerste verwachtingsuur, of null voor live */
+const playbackHours = ref<number | null>(null)
 let users = 0
 let timer: ReturnType<typeof setInterval> | undefined
 
@@ -156,6 +171,32 @@ async function refresh() {
   }
 }
 
+/** Verwachting op een willekeurig moment (uren na het eerste uur), lineair geïnterpoleerd. */
+export function forecastAt(forecast: ForecastPoint[], hours: number): ForecastPoint | null {
+  if (!forecast.length) return null
+  const i = Math.min(Math.max(Math.floor(hours), 0), forecast.length - 1)
+  const a = forecast[i]
+  const b = forecast[Math.min(i + 1, forecast.length - 1)]
+  const t = Math.min(Math.max(hours - i, 0), 1)
+  const lerp = (x: number, y: number) => x + (y - x) * t
+  // Richting via de kortste weg interpoleren (bv. 350° → 10°)
+  const turn = ((b.directionDeg - a.directionDeg + 540) % 360) - 180
+  return {
+    ...a,
+    speed10: lerp(a.speed10, b.speed10),
+    speed100: lerp(a.speed100, b.speed100),
+    directionDeg: (a.directionDeg + turn * t + 360) % 360,
+    cloudCover: lerp(a.cloudCover, b.cloudCover),
+    precipitation: lerp(a.precipitation, b.precipitation),
+  }
+}
+
+/** Tijdstip dat bij een afspeelpositie hoort */
+export function playbackDate(forecast: ForecastPoint[], hours: number): Date | null {
+  if (!forecast.length) return null
+  return new Date(new Date(forecast[0].iso).getTime() + hours * 3600_000)
+}
+
 const wind = computed<WindData>(() => {
   const base: WindData = {
     speed10: FALLBACK_SPEED,
@@ -171,7 +212,21 @@ const wind = computed<WindData>(() => {
     ...live.value,
   }
   const sim = simulation.value
-  if (!sim) return base
+  if (!sim) {
+    const at = playbackHours.value === null ? null : forecastAt(base.forecast, playbackHours.value)
+    if (!at) return base
+    const date = playbackDate(base.forecast, playbackHours.value!)!
+    return {
+      ...base,
+      speed10: at.speed10,
+      speed100: at.speed100,
+      gusts: at.speed10 * 1.4,
+      directionDeg: at.directionDeg,
+      cloudCover: at.cloudCover,
+      precipitation: at.precipitation,
+      observedAt: date.toLocaleTimeString('nl-BE', { hour: '2-digit', minute: '2-digit' }),
+    }
+  }
   return {
     ...base,
     speed10: sim.speed10,
@@ -183,10 +238,11 @@ const wind = computed<WindData>(() => {
   }
 })
 
-export type WindStatus = 'loading' | 'live' | 'stale' | 'offline' | 'sim'
+export type WindStatus = 'loading' | 'live' | 'stale' | 'offline' | 'sim' | 'replay'| 'live' | 'stale' | 'offline' | 'sim'
 
 const status = computed<WindStatus>(() => {
   if (simulation.value) return 'sim'
+  if (playbackHours.value !== null && live.value) return 'replay'
   if (error.value) return live.value ? 'stale' : 'offline'
   if (!live.value) return 'loading'
   return 'live'
@@ -195,6 +251,7 @@ const status = computed<WindStatus>(() => {
 /** Simulatie starten vanaf de huidige (live) waarden. */
 function startSimulation() {
   const w = wind.value
+  playbackHours.value = null
   const now = new Date()
   simulation.value = {
     speed10: Math.round(w.speed10 * 10) / 10,
@@ -203,6 +260,22 @@ function startSimulation() {
     precipitation: w.precipitation,
     hour: Math.round((now.getHours() + now.getMinutes() / 60) * 4) / 4,
   }
+}
+
+export const PRESETS = [
+  { label: 'Windstil', values: { speed10: 1.5, precipitation: 0, cloudCover: 10 } },
+  { label: 'Fris', values: { speed10: 7, precipitation: 0, cloudCover: 35 } },
+  { label: 'Storm', values: { speed10: 21, precipitation: 1.6, cloudCover: 100 } },
+] as const
+
+/** Instellingen van de simulatie aanpassen; start de simulatie als die nog niet loopt. */
+function updateSimulation(values: Partial<Simulation>) {
+  if (!simulation.value) startSimulation()
+  simulation.value = { ...simulation.value!, ...values }
+}
+
+function applyPreset(values: (typeof PRESETS)[number]['values']) {
+  updateSimulation(values)
 }
 
 function stopSimulation() {
@@ -218,5 +291,5 @@ export function useWindData() {
   onScopeDispose(() => {
     if (--users === 0) clearInterval(timer)
   })
-  return { wind, status, error, loading, refresh, simulation, startSimulation, stopSimulation }
+  return { wind, status, error, loading, refresh, simulation, startSimulation, stopSimulation, updateSimulation, applyPreset, playbackHours }
 }

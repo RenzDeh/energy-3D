@@ -2,6 +2,7 @@
 import { TresCanvas } from '@tresjs/core'
 import { ACESFilmicToneMapping } from 'three'
 import TheScene from './components/TheScene.vue'
+import VoicePanel from './components/VoicePanel.vue'
 import WindHud from './components/WindHud.vue'
 import { useEnvironment } from './composables/useEnvironment'
 
@@ -19,4 +20,5 @@ const { colors } = useEnvironment()
     <TheScene />
   </TresCanvas>
   <WindHud />
+  <VoicePanel />
 </template>

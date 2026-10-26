@@ -1,7 +1,11 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import EnergyPanel from './EnergyPanel.vue'
+import InfoTip from './InfoTip.vue'
+import MarketPanel from './MarketPanel.vue'
 import { useEnvironment } from '../composables/useEnvironment'
-import { LOCATION, useWindData } from '../composables/useWindData'
+import { useViewMode } from '../composables/useViewMode'
+import { LOCATION, PRESETS, useWindData } from '../composables/useWindData'
 import type { WindStatus } from '../composables/useWindData'
 import {
   RATED_POWER_KW,
@@ -14,8 +18,9 @@ import {
   turbineState,
 } from '../lib/turbine'
 
-const { wind, status, simulation, startSimulation, stopSimulation } = useWindData()
+const { wind, status, simulation, startSimulation, stopSimulation, applyPreset } = useWindData()
 const { elevationDeg, sun } = useEnvironment()
+const { mode } = useViewMode()
 
 const hub = computed(() => wind.value.speed100)
 const bft = computed(() => beaufort(wind.value.speed10))
@@ -33,6 +38,7 @@ const statusText: Record<WindStatus, string> = {
   stale: 'Verbinding weg · laatste meting',
   offline: 'Geen data · schatting',
   sim: 'Simulatie',
+  replay: 'Dag afspelen',
 }
 
 const fmt = (v: number, digits = 1) => v.toLocaleString('nl-BE', { minimumFractionDigits: digits, maximumFractionDigits: digits })
@@ -50,28 +56,6 @@ const weatherText = computed(() => {
   return precipitation > 0 ? `${sky} · regen ${fmt(precipitation)} mm` : `${sky} · ${Math.round(cloudCover)}%`
 })
 
-// Verwachting komende 24 uur als sparkline (wind op ashoogte bepaalt het vermogen)
-const CHART_W = 264
-const CHART_H = 54
-const chart = computed(() => {
-  const points = wind.value.forecast
-  if (points.length < 2) return null
-  const max = Math.max(8, ...points.map(p => p.speed100)) * 1.1
-  const x = (i: number) => (i / (points.length - 1)) * CHART_W
-  const y = (v: number) => CHART_H - (v / max) * CHART_H
-  const line = (key: 'speed10' | 'speed100') => points.map((p, i) => `${x(i).toFixed(1)},${y(p[key]).toFixed(1)}`).join(' ')
-  const peak = points.reduce((a, b) => (b.speed100 > a.speed100 ? b : a))
-  return {
-    hub: line('speed100'),
-    ground: line('speed10'),
-    area: `0,${CHART_H} ${line('speed100')} ${CHART_W},${CHART_H}`,
-    ratedY: y(12),
-    peak,
-    end: points.at(-1)!.time,
-    mid: points[Math.floor(points.length / 2)].time,
-  }
-})
-
 function updateSim(key: 'speed10' | 'directionDeg' | 'cloudCover' | 'precipitation' | 'hour', event: Event) {
   if (!simulation.value) return
   simulation.value = { ...simulation.value, [key]: Number((event.target as HTMLInputElement).value) }
@@ -79,13 +63,36 @@ function updateSim(key: 'speed10' | 'directionDeg' | 'cloudCover' | 'precipitati
 
 const hourLabel = (h: number) => `${String(Math.floor(h) % 24).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`
 
-const presets = [
-  { label: 'Windstil', values: { speed10: 1.5, precipitation: 0, cloudCover: 10 } },
-  { label: 'Fris', values: { speed10: 7, precipitation: 0, cloudCover: 35 } },
-  { label: 'Storm', values: { speed10: 21, precipitation: 1.6, cloudCover: 100 } },
-]
-function applyPreset(values: (typeof presets)[number]['values']) {
-  if (simulation.value) simulation.value = { ...simulation.value, ...values }
+const tab = ref<'energy' | 'market' | 'weather'>('energy')
+
+const COMPASS_FULL: Record<string, string> = {
+  N: 'noorden', NO: 'noordoosten', O: 'oosten', ZO: 'zuidoosten', Z: 'zuiden', ZW: 'zuidwesten', W: 'westen', NW: 'noordwesten',
+}
+
+/** De situatie in één zin, zodat iedereen meteen snapt wat er gebeurt */
+const headline = computed(() => {
+  const from = COMPASS_FULL[compassLabel(wind.value.directionDeg)]
+  const blowing = wind.value.speed10 < 0.3 ? 'Het is windstil.' : `Het waait ${bft.value.name.toLowerCase()} uit het ${from}.`
+  const turbine = {
+    idle: 'Te weinig wind: de molens staan stil.',
+    running: `De molen draait op ${powerPct.value}% van zijn maximale kracht.`,
+    rated: 'Genoeg wind: de molen draait op volle kracht.',
+    storm: 'Te veel wind: de molens zijn uit veiligheid stilgezet.',
+  }[state.value]
+  return `${blowing} ${turbine}`
+})
+
+const INFO = {
+  speed: 'Windsnelheid op 10 meter hoogte, zoals in het weerbericht. 1 m/s = 3,6 km/u. Windmolens beginnen te draaien vanaf ongeveer 3 m/s.',
+  beaufort: 'Beaufort is de windschaal uit het weerbericht: van 0 (windstil) tot 12 (orkaan).',
+  direction: 'Waar de wind vandaan komt. De molen draait zijn neus automatisch naar de wind toe.',
+  gusts: 'Rukwinden zijn korte, harde windstoten. Ze bepalen hoe zwaar de molen belast wordt.',
+  hub: 'Hoger waait het harder. De wieken draaien rond 100 meter hoogte, dus díe wind bepaalt hoeveel stroom de molen maakt.',
+  sun: 'Stand van de zon voor Kortrijk: hoe hoog ze boven de horizon staat en in welke richting. Bepaalt licht en schaduw in de scène.',
+  state: 'Onder 3 m/s staat de molen stil (te weinig wind). Vanaf 12 m/s levert hij zijn maximum. Boven 25 m/s wordt hij uit veiligheid stilgezet (stormstop).',
+  rpm: 'Toeren per minuut van de wieken. Grote molens draaien traag (6 à 15 keer per minuut), maar de wiektippen halen toch meer dan 250 km/u.',
+  power: 'Vermogen: hoeveel stroom deze ene molen op dit moment levert. 1 MW (megawatt) = 1000 kW (kilowatt).',
+  rated: 'Het maximum van deze molen is 3 MW (nominaal vermogen). Hij haalt dat vanaf ongeveer 12 m/s wind op ashoogte.',
 }
 </script>
 
@@ -99,75 +106,80 @@ function applyPreset(values: (typeof presets)[number]['values']) {
       <span class="status" :data-status="status"><i />{{ statusText[status] }}</span>
     </header>
 
+    <div class="mode" role="radiogroup" aria-label="Weergave">
+      <button type="button" role="radio" :aria-checked="mode === 'simple'" @click="mode = 'simple'">Eenvoudig</button>
+      <button type="button" role="radio" :aria-checked="mode === 'expert'" @click="mode = 'expert'">Expert</button>
+    </div>
+
+    <p class="headline">{{ headline }}</p>
+
     <div class="hero">
       <div class="speed">
         <strong>{{ fmt(wind.speed10) }}</strong>
         <span>m/s</span>
-        <small>{{ fmt(msToKmh(wind.speed10), 0) }} km/u · Bft {{ bft.force }} · {{ bft.name }}</small>
+        <InfoTip :text="INFO.speed" align="left" />
+        <small>
+          {{ fmt(msToKmh(wind.speed10), 0) }} km/u · Bft {{ bft.force }} · {{ bft.name }}
+          <InfoTip v-if="mode === 'expert'" :text="INFO.beaufort" align="left" />
+        </small>
       </div>
       <div class="compass" :aria-label="`Wind uit ${compassLabel(wind.directionDeg)}`">
         <span class="n">N</span>
         <svg viewBox="-50 -50 100 100" :style="{ transform: arrowRotation }">
           <path d="M0 -34 L11 14 L0 6 L-11 14 Z" />
         </svg>
-        <small>{{ compassLabel(wind.directionDeg) }} · {{ Math.round(wind.directionDeg) }}°</small>
+        <small>uit {{ compassLabel(wind.directionDeg) }}<template v-if="mode === 'expert'"> · {{ Math.round(wind.directionDeg) }}°</template> <InfoTip :text="INFO.direction" align="right" /></small>
       </div>
     </div>
 
     <dl>
-      <div><dt>Rukwinden</dt><dd>{{ fmt(wind.gusts) }} m/s</dd></div>
-      <div><dt>Wind op 100 m</dt><dd>{{ fmt(hub) }} m/s</dd></div>
+      <template v-if="mode === 'expert'">
+        <div><dt>Rukwinden <InfoTip :text="INFO.gusts" align="left" /></dt><dd>{{ fmt(wind.gusts) }} m/s</dd></div>
+        <div><dt>Wind op 100 m <InfoTip :text="INFO.hub" align="right" /></dt><dd>{{ fmt(hub) }} m/s</dd></div>
+      </template>
       <div><dt>Temperatuur</dt><dd>{{ fmt(wind.temperature) }} °C</dd></div>
       <div><dt>Hemel</dt><dd>{{ weatherText }}</dd></div>
-      <div><dt>Zon</dt><dd>{{ sunText }}</dd></div>
+      <div v-if="mode === 'expert'"><dt>Zon <InfoTip :text="INFO.sun" align="left" /></dt><dd>{{ sunText }}</dd></div>
     </dl>
 
     <section class="turbine">
       <div class="row">
-        <span>Turbine</span>
+        <span>{{ mode === 'expert' ? 'Turbine' : 'De molen' }} <InfoTip :text="INFO.state" align="left" /></span>
         <span class="state" :data-state="state">{{ STATE_LABEL[state] }}</span>
       </div>
       <div class="row big">
-        <span>{{ fmt(rpm, 1) }} <small>rpm</small></span>
-        <span>{{ fmt(power, 0) }} <small>kW</small></span>
+        <span v-if="mode === 'expert'">{{ fmt(rpm, 1) }} <small>rpm</small> <InfoTip :text="INFO.rpm" align="left" /></span>
+        <span v-else>{{ powerPct }}%</span>
+        <span>{{ fmt(power, 0) }} <small>kW</small> <InfoTip :text="INFO.power" align="right" /></span>
       </div>
       <div class="bar" role="meter" :aria-valuenow="powerPct" aria-valuemin="0" aria-valuemax="100" aria-label="Vermogen">
         <div :style="{ width: powerPct + '%' }" />
       </div>
-      <p class="hint">{{ powerPct }}% van {{ RATED_POWER_KW / 1000 }} MW nominaal</p>
+      <p class="hint">
+        <template v-if="mode === 'expert'">{{ powerPct }}% van {{ RATED_POWER_KW / 1000 }} MW nominaal</template>
+        <template v-else>van zijn maximum ({{ RATED_POWER_KW / 1000 }} MW)</template>
+        <InfoTip :text="INFO.rated" align="left" />
+      </p>
     </section>
 
     <footer>
       <span v-if="wind.observedAt">Gemeten om {{ wind.observedAt }}</span>
       <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Weerdata: Open-Meteo.com (CC BY 4.0)</a>
-      <span>Zonnestand: SunCalc-algoritme</span>
+      <span v-if="mode === 'expert'">Zonnestand: SunCalc-algoritme</span>
     </footer>
   </aside>
 
-  <aside class="hud side" aria-label="Verwachting en simulatie">
+  <aside class="hud side" aria-label="Energie en simulatie">
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" :aria-selected="tab === 'energy'" @click="tab = 'energy'">Energie</button>
+      <button type="button" role="tab" :aria-selected="tab === 'market'" @click="tab = 'market'">Markt</button>
+      <button type="button" role="tab" :aria-selected="tab === 'weather'" @click="tab = 'weather'">Weer</button>
+    </div>
 
-    <section v-if="chart" class="forecast">
-      <div class="row">
-        <span>Komende 24 uur</span>
-        <span class="legend"><i class="hub" />100 m <i class="ground" />10 m</span>
-      </div>
-      <svg :viewBox="`0 -4 ${CHART_W} ${CHART_H + 8}`" preserveAspectRatio="none" role="img" :aria-label="`Windverwachting, piek ${fmt(chart.peak.speed100)} m/s om ${chart.peak.time}`">
-        <defs>
-          <linearGradient id="fc-fill" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0" stop-color="#38bdf8" stop-opacity="0.35" />
-            <stop offset="1" stop-color="#38bdf8" stop-opacity="0" />
-          </linearGradient>
-        </defs>
-        <line class="rated" x1="0" :x2="CHART_W" :y1="chart.ratedY" :y2="chart.ratedY" />
-        <polygon :points="chart.area" fill="url(#fc-fill)" />
-        <polyline class="ground" :points="chart.ground" />
-        <polyline class="hub" :points="chart.hub" />
-      </svg>
-      <div class="axis"><span>nu</span><span>{{ chart.mid }}</span><span>{{ chart.end }}</span></div>
-      <p class="hint">Piek {{ fmt(chart.peak.speed100) }} m/s om {{ chart.peak.time }} · stippellijn = vol vermogen</p>
-    </section>
+    <EnergyPanel v-if="tab === 'energy'" />
+    <MarketPanel v-else-if="tab === 'market'" />
 
-    <section class="sim">
+    <section v-else class="sim">
       <button v-if="!simulation" type="button" class="toggle" @click="startSimulation">Simuleer ander weer</button>
       <template v-else>
         <div class="row">
@@ -175,7 +187,7 @@ function applyPreset(values: (typeof presets)[number]['values']) {
           <button type="button" class="link" @click="stopSimulation">Terug naar live</button>
         </div>
         <div class="presets">
-          <button v-for="p in presets" :key="p.label" type="button" @click="applyPreset(p.values)">{{ p.label }}</button>
+          <button v-for="p in PRESETS" :key="p.label" type="button" @click="applyPreset(p.values)">{{ p.label }}</button>
         </div>
         <div class="sliders">
         <label>
@@ -264,7 +276,8 @@ h1 {
   animation: pulse 2s infinite;
 }
 .status[data-status='loading'] i,
-.status[data-status='sim'] i {
+.status[data-status='sim'] i,
+.status[data-status='replay'] i {
   background: #fbbf24;
 }
 .status[data-status='stale'] i,
@@ -343,7 +356,7 @@ h1 {
   left: 16px;
   width: 330px;
 }
-.hud.side .sim:first-child { padding-top: 0; border-top: 0; }
+.hud.side .sim { padding-top: 0; border-top: 0; }
 
 dl {
   margin: 6px 0 0;
@@ -406,45 +419,58 @@ dd { margin: 0; font-weight: 550; }
   color: rgb(238 244 247 / 0.5);
 }
 
-.forecast { display: flex; flex-direction: column; gap: 6px; }
-.forecast svg {
-  width: 100%;
-  height: 62px;
-  overflow: visible;
-}
-.forecast polyline {
-  fill: none;
-  stroke-linejoin: round;
-  stroke-linecap: round;
-  vector-effect: non-scaling-stroke;
-}
-.forecast polyline.hub { stroke: #38bdf8; stroke-width: 2; }
-.forecast polyline.ground { stroke: rgb(238 244 247 / 0.45); stroke-width: 1.5; }
-.forecast .rated {
-  stroke: #4ade80;
-  stroke-width: 1;
-  stroke-dasharray: 3 4;
-  opacity: 0.6;
-  vector-effect: non-scaling-stroke;
-}
-.legend {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 11px;
-}
-.legend i {
-  width: 10px;
-  height: 2px;
-  border-radius: 1px;
-  background: #38bdf8;
-}
-.legend i.ground { margin-left: 6px; background: rgb(238 244 247 / 0.45); }
-.axis {
+.mode {
   display: flex;
-  justify-content: space-between;
-  font-size: 10px;
-  color: rgb(238 244 247 / 0.5);
+  gap: 2px;
+  padding: 2px;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 0.06);
+}
+.mode button {
+  flex: 1;
+  padding: 3px 8px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 550;
+  color: rgb(238 244 247 / 0.6);
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+}
+.mode button[aria-checked='true'] {
+  color: #0e1821;
+  background: #7dd3fc;
+}
+.headline {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #eef4f7;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.06);
+}
+.tabs button {
+  flex: 1;
+  padding: 5px 8px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 550;
+  color: rgb(238 244 247 / 0.65);
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  cursor: pointer;
+}
+.tabs button[aria-selected="true"] {
+  color: #eef4f7;
+  background: rgb(255 255 255 / 0.14);
 }
 
 .sim {
@@ -543,7 +569,7 @@ footer a:hover { color: #eef4f7; }
     bottom: auto;
     width: auto;
   }
-  .forecast, footer, .hint { display: none; }
+  footer, .hint { display: none; }
   .speed strong { font-size: 40px; }
   .compass { width: 70px; height: 70px; }
   .compass svg { width: 42px; height: 42px; }
