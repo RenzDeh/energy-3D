@@ -1,8 +1,21 @@
 <script setup lang="ts">
 import { OrbitControls } from "@tresjs/cientos";
-import { ref } from "vue";
+import { useLoop } from "@tresjs/core";
+import { ref, shallowRef } from "vue";
+import type { Group } from "three";
 
 const scale = ref(0.5);
+const bladeAngles = [0, 1, 2].map((i) => (i * 2 * Math.PI) / 3);
+
+const rotorRef = shallowRef<Group>();
+const rotationSpeed = 50;
+
+const { onBeforeRender } = useLoop();
+onBeforeRender(({ delta }) => {
+	if (rotorRef.value) {
+		rotorRef.value.rotation.x += rotationSpeed * delta;
+	}
+});
 </script>
 
 <template>
@@ -25,6 +38,16 @@ const scale = ref(0.5);
 	<TresMesh :position="[0.5, 8, 0]" :scale="scale" :rotation="[0, 0, 11]">
 		<TresCapsuleGeometry :args="[0.6, 0.7, 32]" />
 	</TresMesh>
+
+	<!-- De wieken -->
+	<TresGroup ref="rotorRef" :position="[0.8, 8, 0]" :scale="scale">
+		<TresGroup v-for="angle in bladeAngles" :key="angle" :rotation="[angle, 0, 0]">
+			<TresMesh :position="[0, 3.5, 0]" :scale="[0.6, 1, 1]">
+				<TresCylinderGeometry :args="[0.1, 0.4, 7, 32]" />
+				<TresMeshBasicMaterial :color="'#e8e8e8'" />
+			</TresMesh>
+		</TresGroup>
+	</TresGroup>
 
 	<!-- Visual Helpers -->
 	<TresAxesHelper />
