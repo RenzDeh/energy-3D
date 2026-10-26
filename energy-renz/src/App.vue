@@ -1,14 +1,22 @@
 <script setup lang="ts">
 import { TresCanvas } from '@tresjs/core'
-import BasicWindmill from './components/BasicWindmill.vue'
+import { ACESFilmicToneMapping } from 'three'
+import TheScene from './components/TheScene.vue'
+import WindHud from './components/WindHud.vue'
+import { useEnvironment } from './composables/useEnvironment'
 
+const { colors } = useEnvironment()
 </script>
 
 <template>
   <TresCanvas
-    clear-color="#a8d8f0"
+    :clear-color="colors.horizon"
+    shadows
     window-size
+    :tone-mapping="ACESFilmicToneMapping"
+    :tone-mapping-exposure="1.05"
   >
-    <BasicWindmill />
+    <TheScene />
   </TresCanvas>
+  <WindHud />
 </template>

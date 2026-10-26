@@ -4,9 +4,11 @@ body {
   padding: 0;
   height: 100%;
   width: 100%;
+  overflow: hidden;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 #app {
   height: 100%;
   width: 100%;
-  background-color: #000;
+  background-color: #a9d6ef;
 }
