@@ -1,6 +1,6 @@
-import { computed, onScopeDispose, ref, shallowRef } from 'vue'
-
-export const LOCATION = { name: 'Kortrijk', latitude: 50.82, longitude: 3.27 }
+import { computed, onScopeDispose, ref, shallowRef, watch } from 'vue'
+import { useLocation } from './useLocation'
+import type { Place } from './useLocation'
 
 const REFRESH_MS = 10 * 60 * 1000
 const TIMEOUT_MS = 10 * 1000
@@ -11,6 +11,8 @@ export interface ForecastPoint {
   time: string
   /** Volledige lokale tijd, bv. "2026-10-26T14:00" */
   iso: string
+  /** Hetzelfde tijdstip in ms sinds 1970 (UTC), los van de tijdzone van de browser */
+  unix: number
   speed10: number
   speed100: number
   directionDeg: number
@@ -37,9 +39,12 @@ export interface WindData {
   observedAt: string | null
   /** Verwachting voor de komende 24 uur */
   forecast: ForecastPoint[]
+  /** Verschil tussen de lokale tijd van de stad en UTC (seconden) */
+  utcOffsetSeconds: number
 }
 
 interface OpenMeteoResponse {
+  utc_offset_seconds: number
   current: {
     time: string
     wind_speed_10m: number
@@ -60,15 +65,18 @@ interface OpenMeteoResponse {
   }
 }
 
-const API_URL = `https://api.open-meteo.com/v1/forecast?${new URLSearchParams({
-  latitude: String(LOCATION.latitude),
-  longitude: String(LOCATION.longitude),
+const apiUrl = (p: Place) => `https://api.open-meteo.com/v1/forecast?${new URLSearchParams({
+  latitude: String(p.latitude),
+  longitude: String(p.longitude),
   current: 'wind_speed_10m,wind_direction_10m,wind_gusts_10m,temperature_2m,is_day,cloud_cover,precipitation',
   hourly: 'wind_speed_10m,wind_speed_100m,wind_direction_10m,cloud_cover,precipitation',
   wind_speed_unit: 'ms',
-  timezone: 'Europe/Brussels',
+  timezone: p.timezone,
   forecast_days: '2',
 })}`
+
+/** Lokale tijd van Open-Meteo ("2026-10-26T14:00") omzetten naar een echt tijdstip */
+const toUnix = (iso: string, offsetSeconds: number) => Date.parse(`${iso}Z`) - offsetSeconds * 1000
 
 /** Wind op 100 m lineair interpoleren tussen de twee uren rond het huidige tijdstip. */
 function hubSpeedAt(time: string, hourly: OpenMeteoResponse['hourly']): number | null {
@@ -81,7 +89,7 @@ function hubSpeedAt(time: string, hourly: OpenMeteoResponse['hourly']): number |
   return a + (b - a) * (minutes / 60)
 }
 
-function forecastFrom(time: string, hourly: OpenMeteoResponse['hourly']): ForecastPoint[] {
+function forecastFrom(time: string, hourly: OpenMeteoResponse['hourly'], offset: number): ForecastPoint[] {
   const start = Math.max(0, hourly.time.findLastIndex(t => t <= time))
   const points: ForecastPoint[] = []
   for (let i = start; i < Math.min(start + 25, hourly.time.length); i++) {
@@ -90,6 +98,7 @@ function forecastFrom(time: string, hourly: OpenMeteoResponse['hourly']): Foreca
     points.push({
       time: hourly.time[i].slice(11, 16),
       iso: hourly.time[i],
+      unix: toUnix(hourly.time[i], offset),
       speed10,
       speed100: hourly.wind_speed_100m[i] ?? speed10 * 1.35,
       directionDeg: hourly.wind_direction_10m[i] ?? 225,
@@ -101,8 +110,8 @@ function forecastFrom(time: string, hourly: OpenMeteoResponse['hourly']): Foreca
   return points
 }
 
-async function fetchWind(): Promise<WindData> {
-  const res = await fetch(API_URL, { signal: AbortSignal.timeout(TIMEOUT_MS) })
+async function fetchWind(p: Place): Promise<WindData> {
+  const res = await fetch(apiUrl(p), { signal: AbortSignal.timeout(TIMEOUT_MS) })
   if (!res.ok) throw new Error(`Open-Meteo antwoordde met ${res.status}`)
   const json: OpenMeteoResponse = await res.json()
   const c = json.current
@@ -117,7 +126,8 @@ async function fetchWind(): Promise<WindData> {
     cloudCover: c.cloud_cover,
     precipitation: c.precipitation,
     observedAt: c.time.slice(11, 16),
-    forecast: forecastFrom(c.time, json.hourly),
+    forecast: forecastFrom(c.time, json.hourly, json.utc_offset_seconds),
+    utcOffsetSeconds: json.utc_offset_seconds,
   }
 }
 
@@ -156,20 +166,33 @@ const simulation = ref<Simulation | null>(readOverride())
 const playbackHours = ref<number | null>(null)
 let users = 0
 let timer: ReturnType<typeof setInterval> | undefined
+const { place } = useLocation()
 
 async function refresh() {
+  const p = place.value
   loading.value = true
   try {
-    live.value = await fetchWind()
+    const data = await fetchWind(p)
+    // Intussen een andere stad gekozen: dit antwoord is niet meer nodig
+    if (p !== place.value) return
+    live.value = data
     error.value = null
   }
   catch (e) {
-    error.value = e instanceof Error ? e.message : 'Onbekende fout'
+    if (p === place.value) error.value = e instanceof Error ? e.message : 'Onbekende fout'
   }
   finally {
-    loading.value = false
+    if (p === place.value) loading.value = false
   }
 }
+
+// Andere stad: oude data weg en meteen het weer van de nieuwe stad ophalen
+watch(place, () => {
+  live.value = null
+  error.value = null
+  playbackHours.value = null
+  if (users) refresh()
+})
 
 /** Verwachting op een willekeurig moment (uren na het eerste uur), lineair geïnterpoleerd. */
 export function forecastAt(forecast: ForecastPoint[], hours: number): ForecastPoint | null {
@@ -194,7 +217,7 @@ export function forecastAt(forecast: ForecastPoint[], hours: number): ForecastPo
 /** Tijdstip dat bij een afspeelpositie hoort */
 export function playbackDate(forecast: ForecastPoint[], hours: number): Date | null {
   if (!forecast.length) return null
-  return new Date(new Date(forecast[0].iso).getTime() + hours * 3600_000)
+  return new Date(forecast[0].unix + hours * 3600_000)
 }
 
 const wind = computed<WindData>(() => {
@@ -209,6 +232,7 @@ const wind = computed<WindData>(() => {
     precipitation: 0,
     observedAt: null,
     forecast: [],
+    utcOffsetSeconds: 0,
     ...live.value,
   }
   const sim = simulation.value
@@ -224,7 +248,7 @@ const wind = computed<WindData>(() => {
       directionDeg: at.directionDeg,
       cloudCover: at.cloudCover,
       precipitation: at.precipitation,
-      observedAt: date.toLocaleTimeString('nl-BE', { hour: '2-digit', minute: '2-digit' }),
+      observedAt: date.toLocaleTimeString('nl-BE', { hour: '2-digit', minute: '2-digit', timeZone: place.value.timezone }),
     }
   }
   return {
@@ -238,7 +262,7 @@ const wind = computed<WindData>(() => {
   }
 })
 
-export type WindStatus = 'loading' | 'live' | 'stale' | 'offline' | 'sim' | 'replay'| 'live' | 'stale' | 'offline' | 'sim'
+export type WindStatus = 'loading' | 'live' | 'stale' | 'offline' | 'sim' | 'replay'
 
 const status = computed<WindStatus>(() => {
   if (simulation.value) return 'sim'
@@ -252,13 +276,14 @@ const status = computed<WindStatus>(() => {
 function startSimulation() {
   const w = wind.value
   playbackHours.value = null
-  const now = new Date()
+  // Uur van de dag in de gekozen stad, niet in de tijdzone van de browser
+  const local = (Date.now() + w.utcOffsetSeconds * 1000) % 86400_000
   simulation.value = {
     speed10: Math.round(w.speed10 * 10) / 10,
     directionDeg: Math.round(w.directionDeg),
     cloudCover: Math.round(w.cloudCover),
     precipitation: w.precipitation,
-    hour: Math.round((now.getHours() + now.getMinutes() / 60) * 4) / 4,
+    hour: Math.round((local / 3600_000) * 4) / 4,
   }
 }
 

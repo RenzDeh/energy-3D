@@ -1,5 +1,6 @@
 import { ref, shallowRef } from 'vue'
 import { MAX_TURBINES, useEnergy } from './useEnergy'
+import { searchPlaces, useLocation } from './useLocation'
 import { CAR_CHARGE_KWH, useMarket } from './useMarket'
 import { PRESETS, useWindData } from './useWindData'
 
@@ -31,7 +32,7 @@ export const EXAMPLES = [
   'Hoeveel energie produceren we?',
   'Wat kost stroom nu?',
   'Wanneer is stroom goedkoop?',
-  'Hoeveel verdienen we?',
+  'Ga naar Gent',
   'Meer wind',
   'Zet de zon op 15 uur',
   'Speel de dag af',
@@ -56,6 +57,30 @@ function normalize(text: string): string {
     .map(w => (w in NUMBER_WORDS ? String(NUMBER_WORDS[w]) : w))
     .join(' ')
     .trim()
+}
+
+/** Woorden die na "naar" geen stad zijn ("terug naar live", "wind naar 10") */
+const NOT_A_CITY = /^(live|nu|het begin|de echte data|\d+.*)$/
+
+/** Stadsnaam uit een zin halen, of null als de zin niet over een andere stad gaat. */
+function cityQuery(t: string): string | null {
+  const patterns = [
+    // "ga naar Gent", "wissel naar Brugge", "verander de stad naar Leuven", "naar Antwerpen"
+    /^(?:ga|ga eens|wissel|verander|spring|zet|breng me|neem me mee)?(?: de stad| de locatie)? ?naar (.+)$/,
+    // "stad Gent", "kies de stad Brugge", "zet de stad op Leuven", "andere stad Mechelen"
+    /(?:^|\s)(?:stad|gemeente|locatie) (?:op |naar |in )?(.+)$/,
+    // "toon Gent", "zoek Brugge", "open Leuven"
+    /^(?:toon|zoek|kies|open|bekijk) (?:de stad |het weer in |het weer van )?(.+)$/,
+    // "hoe is het weer in Gent", "hoe waait het in Oostende", "wat is het weer in Brugge"
+    /^(?:hoe is het weer|wat is het weer|hoe waait het|hoe hard waait het|hoe is het) (?:in|te|aan) (.+)$/,
+  ]
+  for (const pattern of patterns) {
+    const m = t.match(pattern)
+    if (!m) continue
+    const name = m[1].replace(/\s+(alsjeblieft|alstublieft|aub|eens|zien)$/, '').trim()
+    if (name.length >= 2 && !NOT_A_CITY.test(name)) return name
+  }
+  return null
 }
 
 export interface VoiceLog {
@@ -84,6 +109,7 @@ const fmt = (v: number, digits = 0) => v.toLocaleString('nl-BE', { minimumFracti
 export function useVoice() {
   const { wind, simulation, updateSimulation, applyPreset, stopSimulation } = useWindData()
   const energy = useEnergy()
+  const { place, setPlace } = useLocation()
   const market = useMarket()
 
   const simSpeed = () => simulation.value?.speed10 ?? wind.value.speed10
@@ -94,6 +120,24 @@ export function useVoice() {
     const t = normalize(raw)
     let m: RegExpMatchArray | null
 
+    // Andere stad: "ga naar Gent", "verander de stad naar Brugge", "hoe is het weer in Leuven"
+    const city = cityQuery(t)
+    if (city) {
+      const heard = raw
+      searchPlaces(city)
+        .then(([first]) => {
+          const ok = !!first
+          if (first) setPlace(first)
+          const result = first ? `Je bekijkt nu ${first.name}${first.country ? ` (${first.country})` : ''}` : `Geen stad gevonden met de naam “${city}”`
+          if (last.value?.heard === heard) last.value = { heard, result, ok }
+          speak(first ? `We tonen nu ${first.name}.` : `Ik vond geen stad met de naam ${city}.`)
+        })
+        .catch(() => {
+          if (last.value?.heard === heard) last.value = { heard, result: 'Zoeken lukt nu niet', ok: false }
+          speak('Zoeken lukt nu niet.')
+        })
+      return { result: `Zoeken naar ${city}…` }
+    }
     // Markt eerst: "hoeveel verdienen we" mag niet als energievraag gelezen worden
     if (/wanneer|beste moment|goedkoop|auto|laden|wasmachine/.test(t)) {
       const c = market.cheapest.value
@@ -123,7 +167,7 @@ export function useVoice() {
       const homes = Math.round(energy.households.value)
       const day = simulation.value ? energy.simDayKwh.value : energy.dayKwh.value
       const say = kw > 0
-        ? `We produceren nu ${power(kw)} met ${energy.turbineCount.value} molens. Genoeg voor ongeveer ${fmt(homes)} gezinnen, ${fmt(energy.cityShare.value * 100)} procent van Kortrijk. Over 24 uur is dat ${fmt(day / 1000, 1)} megawattuur.`
+        ? `We produceren nu ${power(kw)} met ${energy.turbineCount.value} molens. Genoeg voor ongeveer ${fmt(homes)} gezinnen, ${fmt(energy.cityShare.value * 100)} procent van ${place.value.name}. Over 24 uur is dat ${fmt(day / 1000, 1)} megawattuur.`
         : 'De molens staan nu stil, we produceren geen stroom.'
       return { result: `Nu ${fmt(kw)} kW · ${fmt(homes)} gezinnen · ${fmt(day / 1000, 1)} MWh per dag`, say }
     }

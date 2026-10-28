@@ -1,5 +1,5 @@
 import { seededRandom } from './random'
-import { PENTA } from './kortrijk'
+import { OFFICE } from './town'
 import { CITY, RIVER, riverCoords, terrainHeight } from './terrain'
 
 /** De andere molens van het windpark, verder in het landschap. */
@@ -13,7 +13,7 @@ export const PARK_TURBINES = [
 
 export interface TreeSpot { x: number, y: number, z: number, scale: number, rotation: number, hue: number }
 
-/** Bomenrijen en bosjes, zoals houtkanten tussen Vlaamse akkers. */
+/** Bomenrijen en bosjes, zoals houtkanten tussen akkers. */
 export function treeSpots(): TreeSpot[] {
   const rand = seededRandom(42)
   const spots: TreeSpot[] = []
@@ -21,7 +21,7 @@ export function treeSpots(): TreeSpot[] {
     Math.hypot(x, z) > 34 && PARK_TURBINES.every(t => Math.hypot(x - t.x, z - t.z) > 9)
     && Math.abs(riverCoords(x, z).across) > RIVER.width / 2 + 3
     && (park || Math.hypot(x - CITY.x, z - CITY.z) > CITY.radius * 0.9)
-    && Math.hypot(x - PENTA.x, z - PENTA.z) > PENTA.radius + 4
+    && Math.hypot(x - OFFICE.x, z - OFFICE.z) > OFFICE.radius + 4
 
   const add = (x: number, z: number, park = false) => {
     if (!free(x, z, park)) return
@@ -38,11 +38,11 @@ export function treeSpots(): TreeSpot[] {
       add(cx + Math.cos(angle) * s + (rand() - 0.5), cz + Math.sin(angle) * s + (rand() - 0.5))
     }
   }
-  // Park rond The Penta op Kortrijk Weide
+  // Park rond het kantoorgebouw
   for (let k = 0; k < 22; k++) {
     const a = (k / 22) * Math.PI * 2 + rand() * 0.2
-    const r = PENTA.radius + 7 + rand() * 9
-    add(PENTA.x + Math.cos(a) * r, PENTA.z + Math.sin(a) * r, true)
+    const r = OFFICE.radius + 7 + rand() * 9
+    add(OFFICE.x + Math.cos(a) * r, OFFICE.z + Math.sin(a) * r, true)
   }
   // Bosjes
   for (let c = 0; c < 9; c++) {

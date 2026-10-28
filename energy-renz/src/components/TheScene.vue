@@ -11,7 +11,7 @@ import { PARK_TURBINES } from '../lib/scenery'
 import { rotorRpm, turbineState, windVector } from '../lib/turbine'
 import Clouds from './Clouds.vue'
 import Grass from './Grass.vue'
-import Kortrijk from './Kortrijk.vue'
+import Town from './Town.vue'
 import Ground from './Ground.vue'
 import PowerLines from './PowerLines.vue'
 import Rain from './Rain.vue'
@@ -97,7 +97,7 @@ const streakColor = computed(() => (night.value ? '#8fb3ff' : '#ffffff'))
   <Ground />
   <Grass :wind-speed="wind.speed10" :wind-dir="blowing" />
   <Trees :wind-speed="wind.speed10" :wind-dir="blowing" />
-  <Kortrijk :night="night" :share="cityShare" />
+  <Town :night="night" :share="cityShare" />
   <PowerLines :load="load" :turbines="turbineCount" :price-level="priceLevel" />
   <Clouds
     :wind-speed="wind.speed10"

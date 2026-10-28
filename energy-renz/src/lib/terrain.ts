@@ -3,16 +3,16 @@ const smoothstep = (edge0: number, edge1: number, x: number) => {
   return t * t * (3 - 2 * t)
 }
 
-// De Leie: een zacht kronkelende lijn door het centrum van Kortrijk, ten westen van de molen
+// De rivier: een zacht kronkelende lijn door het centrum van het stadje, ten westen van de molen
 export const RIVER = {
-  /** Punt op de rivier, aan de Broelbrug */
+  /** Punt op de rivier, aan de brug */
   origin: { x: -128, z: -40 },
   /** Looprichting (eenheidsvector) */
   dir: { x: 0.34, z: -0.94 },
   width: 9,
 }
 
-/** Afstand tot de middellijn van de Leie, en de positie langs de rivier. */
+/** Afstand tot de middellijn van de rivier, en de positie langs de rivier. */
 export function riverCoords(x: number, z: number): { across: number, along: number } {
   const dx = x - RIVER.origin.x
   const dz = z - RIVER.origin.z
@@ -25,7 +25,7 @@ export function riverCoords(x: number, z: number): { across: number, along: numb
 /** Vlak rond de stad, zodat huizen en torens niet op een helling staan */
 export const CITY = { x: -135, z: -35, radius: 48 }
 
-/** Hoogte van het terrein: vlak rond de windmolen en de stad, zacht glooiend verderop, met een bedding voor de Leie. */
+/** Hoogte van het terrein: vlak rond de windmolen en de stad, zacht glooiend verderop, met een bedding voor de rivier. */
 export function terrainHeight(x: number, z: number): number {
   const hills
     = Math.sin(x * 0.06) * Math.cos(z * 0.05) * 1.6
@@ -36,5 +36,5 @@ export function terrainHeight(x: number, z: number): number {
   return hills * flat - bed * 1.6
 }
 
-/** Waterniveau van de Leie (iets onder het maaiveld) */
+/** Waterniveau van de rivier (iets onder het maaiveld) */
 export const WATER_LEVEL = -0.7

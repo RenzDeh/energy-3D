@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onUnmounted } from 'vue'
 import { BufferAttribute, Color, MathUtils, MeshStandardMaterial, PlaneGeometry } from 'three'
-import { PENTA } from '../lib/kortrijk'
+import { OFFICE } from '../lib/town'
 import { CITY, terrainHeight } from '../lib/terrain'
 
 const SIZE = 700
@@ -39,9 +39,9 @@ for (let i = 0; i < position.count; i++) {
   color.multiplyScalar(0.93 + 0.07 * Math.sin(v * (cell > 0.5 ? 2.2 : 1.4)))
   // Rond de molen blijft het weiland, zodat het gras er naadloos in overgaat
   color.lerp(MEADOW, 1 - MathUtils.smoothstep(Math.hypot(x, z), 38, 60))
-  // Stad: straten en pleinen, met het park van Kortrijk Weide rond The Penta
+  // Stad: straten en pleinen, met een park rond het kantoorgebouw
   color.lerp(PAVING, 1 - MathUtils.smoothstep(Math.hypot(x - CITY.x, z - CITY.z), CITY.radius * 0.7, CITY.radius * 1.05))
-  color.lerp(PARK, 1 - MathUtils.smoothstep(Math.hypot(x - PENTA.x, z - PENTA.z), PENTA.radius + 16, PENTA.radius + 24))
+  color.lerp(PARK, 1 - MathUtils.smoothstep(Math.hypot(x - OFFICE.x, z - OFFICE.z), OFFICE.radius + 16, OFFICE.radius + 24))
   color.toArray(colors, i * 3)
 }
 geometry.setAttribute('color', new BufferAttribute(colors, 3))

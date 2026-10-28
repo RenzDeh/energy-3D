@@ -1,13 +1,12 @@
 import { computed, ref, watch } from 'vue'
 import { RATED_POWER_KW, powerKw } from '../lib/turbine'
+import { useLocation } from './useLocation'
 import { useWindData } from './useWindData'
 
 /** Gemiddeld Vlaams gezin: ongeveer 3500 kWh elektriciteit per jaar */
 export const HOUSEHOLD_KWH_YEAR = 3500
 /** Gemiddeld vermogen van één gezin (kW) */
 export const HOUSEHOLD_KW = HOUSEHOLD_KWH_YEAR / 8760
-/** Ongeveer het aantal huishoudens in Kortrijk */
-export const KORTRIJK_HOUSEHOLDS = 35000
 export const MAX_TURBINES = 6
 
 // Regelbare parameters, gedeeld met de scène, de HUD en de spraakbesturing
@@ -29,6 +28,7 @@ let watching = false
 
 export function useEnergy() {
   const { wind, playbackHours, simulation } = useWindData()
+  const { households: cityHouseholds } = useLocation()
 
   // Een simulatie starten onderbreekt het afspelen
   if (!watching) {
@@ -41,8 +41,8 @@ export function useEnergy() {
   const kw = computed(() => farmKw(wind.value.speed100))
   const ratedKw = computed(() => RATED_POWER_KW * rotorScale.value ** 2 * turbineCount.value)
   const households = computed(() => kw.value / HOUSEHOLD_KW)
-  /** Aandeel van de Kortrijkse gezinnen dat nu van stroom voorzien wordt (0..1) */
-  const cityShare = computed(() => Math.min(1, households.value / KORTRIJK_HOUSEHOLDS))
+  /** Aandeel van de gezinnen in de gekozen stad dat nu van stroom voorzien wordt (0..1) */
+  const cityShare = computed(() => Math.min(1, households.value / cityHouseholds.value))
 
   /** Vermogen per uur volgens de verwachting */
   const curve = computed(() => wind.value.forecast.map(p => ({ time: p.time, iso: p.iso, kw: farmKw(p.speed100) })))
@@ -110,6 +110,7 @@ export function useEnergy() {
     ratedKw,
     households,
     cityShare,
+    cityHouseholds,
     curve,
     hours,
     position,

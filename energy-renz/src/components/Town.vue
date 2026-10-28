@@ -19,7 +19,8 @@ import {
   TorusGeometry,
 } from 'three'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
-import { BELFORT, BROEL, CHURCH, LANDMARKS, PENTA, houses } from '../lib/kortrijk'
+import { useLocation } from '../composables/useLocation'
+import { BRIDGE, CHURCH, OFFICE, TOWN_HALL, TOWN_LABEL, houses } from '../lib/town'
 import { RIVER, WATER_LEVEL } from '../lib/terrain'
 
 const props = defineProps<{
@@ -27,6 +28,8 @@ const props = defineProps<{
   /** Aandeel van de gezinnen dat door het windpark van stroom voorzien wordt (0..1) */
   share: number
 }>()
+
+const { place: city } = useLocation()
 
 const disposables: { dispose: () => void }[] = []
 function keep<T extends { dispose: () => void }>(item: T): T {
@@ -36,10 +39,11 @@ function keep<T extends { dispose: () => void }>(item: T): T {
 
 // --- Materialen ---
 const mat = {
-  white: keep(new MeshStandardMaterial({ color: '#f4f4f1', roughness: 0.45 })),
+  white: keep(new MeshStandardMaterial({ color: '#e9e8e3', roughness: 0.5 })),
   glass: keep(new MeshStandardMaterial({ color: '#2f4452', roughness: 0.12, metalness: 0.6, emissive: new Color('#f7d58a'), emissiveIntensity: 0 })),
   roofGreen: keep(new MeshStandardMaterial({ color: '#6c8f45', roughness: 1 })),
   stone: keep(new MeshStandardMaterial({ color: '#b8a888', roughness: 0.9 })),
+  plaster: keep(new MeshStandardMaterial({ color: '#d9cdb4', roughness: 0.9 })),
   brick: keep(new MeshStandardMaterial({ color: '#9a5a3c', roughness: 0.95 })),
   slate: keep(new MeshStandardMaterial({ color: '#3b4048', roughness: 0.6, metalness: 0.2 })),
   gold: keep(new MeshStandardMaterial({ color: '#d4a940', roughness: 0.3, metalness: 0.9 })),
@@ -59,117 +63,7 @@ function place<T extends BufferGeometry>(g: T, x: number, y: number, z: number, 
   return g
 }
 
-// --- The Penta: vijfhoek met afgeronde hoeken, witte vloerplaten en glazen gevels ---
-function roundedPentagon(radius: number, corner: number): Shape {
-  const pts = Array.from({ length: 5 }, (_, i) => {
-    const a = (i / 5) * Math.PI * 2 + Math.PI / 2
-    return { x: Math.cos(a) * radius, y: Math.sin(a) * radius }
-  })
-  const shape = new Shape()
-  pts.forEach((p, i) => {
-    const prev = pts[(i + 4) % 5]
-    const next = pts[(i + 1) % 5]
-    const toward = (q: { x: number, y: number }) => {
-      const len = Math.hypot(q.x - p.x, q.y - p.y)
-      return { x: p.x + ((q.x - p.x) / len) * corner, y: p.y + ((q.y - p.y) / len) * corner }
-    }
-    const a = toward(prev)
-    const b = toward(next)
-    if (i === 0) shape.moveTo(a.x, a.y)
-    else shape.lineTo(a.x, a.y)
-    shape.quadraticCurveTo(p.x, p.y, b.x, b.y)
-  })
-  shape.closePath()
-  return shape
-}
-
-function pentaSlab(radius: number, height: number, y: number) {
-  const g = new ExtrudeGeometry(roundedPentagon(radius, radius * 0.32), { depth: height, bevelEnabled: false, curveSegments: 10 })
-  g.rotateX(-Math.PI / 2)
-  g.translate(0, y, 0)
-  return g
-}
-
-const FLOORS = 5
-const FLOOR_H = 2.2
-const whites: BufferGeometry[] = []
-const glasses: BufferGeometry[] = []
-for (let f = 0; f < FLOORS; f++) {
-  const y = f * FLOOR_H
-  // Licht uitkragende vloerplaten, daartussen een terugliggende glazen gevel
-  whites.push(pentaSlab(PENTA.radius + 0.35, 0.5, y + FLOOR_H - 0.5))
-  glasses.push(pentaSlab(PENTA.radius - 0.4, FLOOR_H - 0.5, y))
-}
-whites.push(pentaSlab(PENTA.radius + 0.1, 0.45, 0))
-// Dakopbouw met terrassen en een groen dak
-const top = FLOORS * FLOOR_H
-glasses.push(pentaSlab(PENTA.radius * 0.62, 1.8, top))
-whites.push(pentaSlab(PENTA.radius * 0.66, 0.4, top + 1.8))
-// Verticale witte lamellen rondom de gevel
-for (let i = 0; i < 40; i++) {
-  const a = (i / 40) * Math.PI * 2
-  const r = PENTA.radius * 0.9
-  whites.push(place(new BoxGeometry(0.12, top, 0.5), Math.cos(a) * r, top / 2, Math.sin(a) * r, -a))
-}
-const pentaWhite = keep(merge(whites))
-const pentaGlass = keep(merge(glasses))
-const pentaRoof = keep(pentaSlab(PENTA.radius * 0.98, 0.15, top))
-;[...whites, ...glasses].forEach(g => g.dispose())
-
-// --- Broeltorens + Broelbrug ---
-function broelTower(x: number) {
-  return {
-    stone: [
-      place(new CylinderGeometry(2.3, 2.5, 11, 28), x, 5.5 - 1.5, 0),
-      place(new CylinderGeometry(2.55, 2.55, 0.5, 28), x, 9.3, 0),
-    ],
-    slate: [place(new ConeGeometry(2.75, 6.5, 28), x, 9.55 + 3.25, 0)],
-    dark: [0, 1, 2, 3].map(k => {
-      const a = (k / 4) * Math.PI * 2 + 0.4
-      return place(new BoxGeometry(0.5, 1, 0.3), x + Math.cos(a) * 2.3, 5 + (k % 2) * 2, Math.sin(a) * 2.3, -a + Math.PI / 2)
-    }),
-  }
-}
-const towers = [broelTower(-BROEL.offset), broelTower(BROEL.offset)]
-const bridgeLength = BROEL.offset * 2
-const broelStone = [
-  ...towers.flatMap(t => t.stone),
-  place(new BoxGeometry(bridgeLength, 0.8, 4.2), 0, 2.2, 0),
-  place(new BoxGeometry(bridgeLength, 0.6, 0.3), 0, 2.9, 2),
-  place(new BoxGeometry(bridgeLength, 0.6, 0.3), 0, 2.9, -2),
-  // Bogen onder de brug
-  ...[-1, 0, 1].map(k => place(new TorusGeometry(2, 0.45, 8, 16, Math.PI), k * 4.6, -0.4, 0).scale(1, 1, 4.2)),
-]
-const broel = {
-  stone: keep(merge(broelStone)),
-  slate: keep(merge(towers.flatMap(t => t.slate))),
-  dark: keep(merge(towers.flatMap(t => t.dark))),
-}
-
-// --- Belfort: vierkante stenen toren met vier hoektorentjes en een spits ---
-const belfortStone = [
-  place(new BoxGeometry(5, 15, 5), 0, 7.5, 0),
-  place(new BoxGeometry(5.6, 0.5, 5.6), 0, 15.2, 0),
-  place(new BoxGeometry(3.6, 4.5, 3.6), 0, 17.6, 0),
-  ...[[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([sx, sz]) => place(new CylinderGeometry(0.55, 0.55, 3.5, 12), sx * 2.5, 17.2, sz * 2.5)),
-]
-const belfortSlate = [
-  place(new ConeGeometry(2.6, 9.5, 8), 0, 19.85 + 4.75, 0),
-  ...[[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([sx, sz]) => place(new ConeGeometry(0.8, 3, 12), sx * 2.5, 20.45, sz * 2.5)),
-]
-const belfortDark = [-1, 1].flatMap(side => [
-  place(new BoxGeometry(1.2, 2.6, 0.2), 0, 11, side * 2.52),
-  place(new BoxGeometry(0.2, 2.6, 1.2), side * 2.52, 11, 0),
-  place(new BoxGeometry(1, 1.8, 0.2), 0, 17.6, side * 1.82),
-])
-const belfort = {
-  stone: keep(merge(belfortStone)),
-  slate: keep(merge(belfortSlate)),
-  dark: keep(merge(belfortDark)),
-  gold: keep(new SphereGeometry(0.4, 12, 12).translate(0, 29.8, 0)),
-}
-
-// --- Sint-Maartenskerk: schip met zadeldak en een hoge toren ---
+/** Zadeldak met de nok langs Z */
 function gableRoof(width: number, height: number, length: number) {
   const s = new Shape()
   s.moveTo(-width / 2, 0)
@@ -180,15 +74,87 @@ function gableRoof(width: number, height: number, length: number) {
   g.translate(0, 0, -length / 2)
   return g
 }
+
+// --- Kantoorgebouw: twee rechthoekige volumes met glazen gevels en witte vloerplaten ---
+const officeWhite: BufferGeometry[] = []
+const officeGlass: BufferGeometry[] = []
+const FLOOR_H = 2.2
+function officeBlock(w: number, d: number, floors: number, x: number, z: number) {
+  for (let f = 0; f < floors; f++) {
+    officeGlass.push(place(new BoxGeometry(w - 0.6, FLOOR_H - 0.45, d - 0.6), x, f * FLOOR_H + (FLOOR_H - 0.45) / 2, z))
+    officeWhite.push(place(new BoxGeometry(w, 0.45, d), x, (f + 1) * FLOOR_H - 0.225, z))
+  }
+  // Verticale stijlen op de hoeken
+  for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+    officeWhite.push(place(new BoxGeometry(0.4, floors * FLOOR_H, 0.4), x + sx * (w / 2 - 0.2), (floors * FLOOR_H) / 2, z + sz * (d / 2 - 0.2)))
+  }
+}
+const LOW_FLOORS = 3
+const HIGH_FLOORS = 6
+officeBlock(17, 9, LOW_FLOORS, -2, 0)
+officeBlock(7, 7, HIGH_FLOORS, 5.5, -1)
+const office = {
+  white: keep(merge(officeWhite)),
+  glass: keep(merge(officeGlass)),
+  // Groen dak op het lage volume
+  roof: keep(place(new BoxGeometry(9.5, 0.12, 8.4), -5.5, LOW_FLOORS * FLOOR_H + 0.06, 0)),
+}
+;[...officeWhite, ...officeGlass].forEach(g => g.dispose())
+
+// --- Stenen boogbrug met leuningen en lantaarns ---
+const bridgeLength = BRIDGE.offset * 2
+const bridge = {
+  stone: keep(merge([
+    place(new BoxGeometry(bridgeLength, 0.8, 4.2), 0, 2.2, 0),
+    place(new BoxGeometry(bridgeLength, 0.6, 0.3), 0, 2.9, 2),
+    place(new BoxGeometry(bridgeLength, 0.6, 0.3), 0, 2.9, -2),
+    // Bogen onder de brug
+    ...[-1, 0, 1].map(k => place(new TorusGeometry(2, 0.45, 8, 16, Math.PI), k * 4.6, -0.4, 0).scale(1, 1, 4.2)),
+  ])),
+  dark: keep(merge([-1, 1].flatMap(side => [-1, 1].map(end =>
+    place(new CylinderGeometry(0.08, 0.1, 2.4, 6), end * (bridgeLength / 2 - 0.6), 3.4 + 1.2, side * 2),
+  )))),
+  gold: keep(merge([-1, 1].flatMap(side => [-1, 1].map(end =>
+    place(new SphereGeometry(0.22, 8, 8), end * (bridgeLength / 2 - 0.6), 5.8, side * 2),
+  )))),
+}
+
+// --- Stadhuis: breed gebouw met zadeldak, dakkapellen en een klein klokkentorentje ---
+const townHall = {
+  plaster: keep(merge([
+    place(new BoxGeometry(14, 8, 7), 0, 4, 0),
+    place(new BoxGeometry(2.6, 3, 2.6), 0, 11.6, 0),
+  ])),
+  stone: keep(merge([
+    place(new BoxGeometry(14.4, 0.6, 7.4), 0, 0.3, 0),
+    place(new BoxGeometry(14.3, 0.35, 7.3), 0, 8, 0),
+    // Trap en ingang
+    place(new BoxGeometry(4, 0.4, 1.2), 0, 0.2, 4),
+  ])),
+  slate: keep(merge([
+    place(gableRoof(7.6, 3.6, 14.6), 0, 8, 0, Math.PI / 2),
+    place(new ConeGeometry(2.1, 3.2, 4), 0, 13.1 + 1.6, 0, Math.PI / 4),
+  ])),
+  dark: keep(merge([
+    // Ramen in twee rijen aan de voorgevel
+    ...[-5, -2.5, 2.5, 5].flatMap(x => [2.6, 5.6].map(y => place(new BoxGeometry(1.1, 1.6, 0.1), x, y, 3.52))),
+    place(new BoxGeometry(1.8, 2.6, 0.1), 0, 1.7, 3.52),
+    // Wijzerplaat van de klok
+    place(new CylinderGeometry(0.75, 0.75, 0.1, 20).rotateX(Math.PI / 2), 0, 11.8, 1.32),
+  ])),
+  gold: keep(new SphereGeometry(0.3, 12, 12).translate(0, 16.5, 0)),
+}
+
+// --- Kerk: schip met zadeldak en een toren met een achtzijdige spits ---
 const church = {
   brick: keep(merge([
     place(new BoxGeometry(7, 9, 18), 0, 4.5, 4),
-    place(new BoxGeometry(5, 22, 5), 0, 11, -6.5),
-    place(new BoxGeometry(5.6, 0.6, 5.6), 0, 22.3, -6.5),
+    place(new BoxGeometry(5, 18, 5), 0, 9, -6.5),
+    place(new BoxGeometry(5.6, 0.6, 5.6), 0, 18.3, -6.5),
   ])),
   slate: keep(merge([
     place(gableRoof(7.4, 4.5, 18.4), 0, 9, 4),
-    place(new ConeGeometry(3.3, 12, 4), 0, 22.6 + 6, -6.5, Math.PI / 4),
+    place(new ConeGeometry(3, 10, 8), 0, 18.6 + 5, -6.5),
   ])),
 }
 
@@ -251,7 +217,7 @@ function updateWindows(count: number) {
 }
 updateWindows(0)
 
-// --- De Leie: een waterlint dat de meander van de bedding volgt ---
+// --- De rivier: een waterlint dat de meander van de bedding volgt ---
 const water = keep((() => {
   const perp = { x: -RIVER.dir.z, z: RIVER.dir.x }
   const half = RIVER.width / 2 + 2.5
@@ -276,10 +242,10 @@ const water = keep((() => {
   return g
 })())
 
-// Lichten in de stad volgen de stroom van het windpark (en zijn 's avonds feller in The Penta)
+// Lichten in de stad volgen de stroom van het windpark (en zijn 's avonds feller in het kantoorgebouw)
 useLoop().onBeforeRender(() => {
   updateWindows(Math.round(props.share * list.length))
-  // The Penta haalt zijn stroom ook uit het park
+  // Het kantoorgebouw haalt zijn stroom ook uit het park
   const target = props.share * (props.night ? 1.4 : 0.3)
   mat.glass.emissiveIntensity += (target - mat.glass.emissiveIntensity) * 0.05
 })
@@ -289,29 +255,30 @@ onUnmounted(() => disposables.forEach(d => d.dispose()))
 
 <template>
   <TresGroup>
-    <!-- The Penta (Howest) -->
-    <TresGroup :position="[PENTA.x, PENTA.y, PENTA.z]" :rotation="[0, PENTA.angle, 0]">
-      <TresMesh :geometry="pentaWhite" :material="mat.white" cast-shadow receive-shadow />
-      <TresMesh :geometry="pentaGlass" :material="mat.glass" />
-      <TresMesh :geometry="pentaRoof" :material="mat.roofGreen" receive-shadow />
+    <!-- Kantoorgebouw in het park -->
+    <TresGroup :position="[OFFICE.x, OFFICE.y, OFFICE.z]" :rotation="[0, OFFICE.angle, 0]">
+      <TresMesh :geometry="office.white" :material="mat.white" cast-shadow receive-shadow />
+      <TresMesh :geometry="office.glass" :material="mat.glass" />
+      <TresMesh :geometry="office.roof" :material="mat.roofGreen" receive-shadow />
     </TresGroup>
 
-    <!-- Broeltorens en Broelbrug over de Leie -->
-    <TresGroup :position="[BROEL.x, BROEL.y, BROEL.z]" :rotation="[0, BROEL.angle, 0]">
-      <TresMesh :geometry="broel.stone" :material="mat.stone" cast-shadow receive-shadow />
-      <TresMesh :geometry="broel.slate" :material="mat.slate" cast-shadow />
-      <TresMesh :geometry="broel.dark" :material="mat.dark" />
+    <!-- Brug over de rivier -->
+    <TresGroup :position="[BRIDGE.x, BRIDGE.y, BRIDGE.z]" :rotation="[0, BRIDGE.angle, 0]">
+      <TresMesh :geometry="bridge.stone" :material="mat.stone" cast-shadow receive-shadow />
+      <TresMesh :geometry="bridge.dark" :material="mat.dark" />
+      <TresMesh :geometry="bridge.gold" :material="mat.gold" />
     </TresGroup>
 
-    <!-- Belfort op de Grote Markt -->
-    <TresGroup :position="[BELFORT.x, BELFORT.y, BELFORT.z]" :rotation="[0, BELFORT.angle, 0]">
-      <TresMesh :geometry="belfort.stone" :material="mat.stone" cast-shadow receive-shadow />
-      <TresMesh :geometry="belfort.slate" :material="mat.slate" cast-shadow />
-      <TresMesh :geometry="belfort.dark" :material="mat.dark" />
-      <TresMesh :geometry="belfort.gold" :material="mat.gold" />
+    <!-- Stadhuis aan het marktplein -->
+    <TresGroup :position="[TOWN_HALL.x, TOWN_HALL.y, TOWN_HALL.z]" :rotation="[0, TOWN_HALL.angle, 0]">
+      <TresMesh :geometry="townHall.plaster" :material="mat.plaster" cast-shadow receive-shadow />
+      <TresMesh :geometry="townHall.stone" :material="mat.stone" receive-shadow />
+      <TresMesh :geometry="townHall.slate" :material="mat.slate" cast-shadow />
+      <TresMesh :geometry="townHall.dark" :material="mat.dark" />
+      <TresMesh :geometry="townHall.gold" :material="mat.gold" />
     </TresGroup>
 
-    <!-- Sint-Maartenskerk -->
+    <!-- Kerk -->
     <TresGroup :position="[CHURCH.x, CHURCH.y, CHURCH.z]" :rotation="[0, CHURCH.angle, 0]">
       <TresMesh :geometry="church.brick" :material="mat.brick" cast-shadow receive-shadow />
       <TresMesh :geometry="church.slate" :material="mat.slate" cast-shadow />
@@ -322,14 +289,9 @@ onUnmounted(() => disposables.forEach(d => d.dispose()))
     <primitive :object="windows" />
     <TresMesh :geometry="water" :material="mat.water" receive-shadow />
 
-    <Html
-      v-for="l in LANDMARKS"
-      :key="l.name"
-      :position="[l.x, l.y, l.z]"
-      center
-      :z-index-range="[10, 0]"
-    >
-      <span class="landmark">{{ l.name }}</span>
+    <!-- Naam van de gekozen stad boven het stadhuis -->
+    <Html :position="[TOWN_LABEL.x, TOWN_LABEL.y, TOWN_LABEL.z]" center :z-index-range="[10, 0]">
+      <span class="landmark">{{ city.name }}</span>
     </Html>
   </TresGroup>
 </template>

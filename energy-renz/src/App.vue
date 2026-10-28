@@ -2,11 +2,15 @@
 import { TresCanvas } from '@tresjs/core'
 import { ACESFilmicToneMapping } from 'three'
 import TheScene from './components/TheScene.vue'
-import VoicePanel from './components/VoicePanel.vue'
-import WindHud from './components/WindHud.vue'
+import Sidebar from './components/Sidebar.vue'
+import TopBar from './components/TopBar.vue'
+import { watchEffect } from 'vue'
 import { useEnvironment } from './composables/useEnvironment'
+import { useLocation } from './composables/useLocation'
 
 const { colors } = useEnvironment()
+const { place } = useLocation()
+watchEffect(() => (document.title = `Windmolen ${place.value.name} – live wind`))
 </script>
 
 <template>
@@ -19,6 +23,6 @@ const { colors } = useEnvironment()
   >
     <TheScene />
   </TresCanvas>
-  <WindHud />
-  <VoicePanel />
+  <TopBar />
+  <Sidebar />
 </template>

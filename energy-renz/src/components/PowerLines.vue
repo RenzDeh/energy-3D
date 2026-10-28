@@ -6,7 +6,7 @@ import { PARK_TURBINES } from '../lib/scenery'
 import { terrainHeight } from '../lib/terrain'
 
 /**
- * Stroomkabels van de molens naar het onderstation bij Kortrijk Weide en verder de stad in.
+ * Stroomkabels van de molens naar het onderstation aan de rand van het stadje en verder de stad in.
  * Lichtpulsen lopen naar de stad: hoe meer vermogen, hoe sneller en feller; de kleur volgt de stroomprijs.
  */
 const props = defineProps<{

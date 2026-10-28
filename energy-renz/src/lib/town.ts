@@ -1,8 +1,8 @@
 import { seededRandom } from './random'
 import { CITY, RIVER, riverCoords, terrainHeight } from './terrain'
 
-// Gestileerd Kortrijk ten westen van de molen: de Leie met de Broeltorens,
-// de Grote Markt met het Belfort, de Sint-Maartenskerk en The Penta van Howest op Kortrijk Weide.
+// Een gewoon, fictief stadje ten westen van de molen: een rivier met een stenen brug,
+// een marktplein met stadhuis en kerk, en een kantoorgebouw in een park aan het water.
 
 const perp = { x: -RIVER.dir.z, z: RIVER.dir.x }
 /** Hoek (rond Y) zodat lokale +X dwars over de rivier ligt */
@@ -10,37 +10,34 @@ export const RIVER_ANGLE = Math.atan2(-perp.z, perp.x)
 
 const at = (x: number, z: number) => ({ x, y: terrainHeight(x, z), z })
 
-/** Broelbrug met de twee Broeltorens aan weerszijden van de Leie */
-export const BROEL = {
+/** Stenen boogbrug over de rivier */
+export const BRIDGE = {
   ...at(RIVER.origin.x, RIVER.origin.z),
   y: 0,
   angle: RIVER_ANGLE,
-  /** Afstand van elke toren tot de middellijn van de rivier */
+  /** Halve lengte van de brug, tot net voorbij de oevers */
   offset: RIVER.width / 2 + 3,
 }
 
-export const BELFORT = { ...at(-153, -26), angle: RIVER_ANGLE }
+export const TOWN_HALL = { ...at(-153, -26), angle: RIVER_ANGLE }
 export const CHURCH = { ...at(-161, -48), angle: RIVER_ANGLE }
-/** The Penta, Howest Campus Kortrijk Weide: in een park aan de Leie */
-export const PENTA = { ...at(-104, -14), radius: 11, angle: 0.3 }
+/** Modern kantoorgebouw in een park aan de rivier (krijgt ook stroom van het park) */
+export const OFFICE = { ...at(-104, -14), radius: 11, angle: 0.3 }
 
-export const LANDMARKS = [
-  { name: 'The Penta · Howest', x: PENTA.x, y: 13.5, z: PENTA.z },
-  { name: 'Broeltorens', x: BROEL.x, y: 17, z: BROEL.z },
-  { name: 'Belfort', x: BELFORT.x, y: 33, z: BELFORT.z },
-]
+/** Plaats van het naambordje van de stad, boven het stadhuis */
+export const TOWN_LABEL = { x: TOWN_HALL.x, y: 22, z: TOWN_HALL.z }
 
 export interface House { x: number, y: number, z: number, angle: number, w: number, d: number, h: number, color: number, roof: number }
 
-/** Rijhuizen in straten evenwijdig aan de Leie. */
+/** Rijhuizen in straten evenwijdig aan de rivier. */
 export function houses(): House[] {
   const rand = seededRandom(1302)
   const list: House[] = []
   const keepClear = [
-    { x: BELFORT.x, z: BELFORT.z, r: 9 },
+    { x: TOWN_HALL.x, z: TOWN_HALL.z, r: 11 },
     { x: CHURCH.x, z: CHURCH.z, r: 11 },
-    { x: BROEL.x, z: BROEL.z, r: 9 },
-    { x: PENTA.x, z: PENTA.z, r: 24 },
+    { x: BRIDGE.x, z: BRIDGE.z, r: 9 },
+    { x: OFFICE.x, z: OFFICE.z, r: 24 },
   ]
   const dir = RIVER.dir
   for (let street = -6; street <= 6; street++) {

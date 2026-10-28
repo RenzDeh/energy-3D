@@ -1,7 +1,8 @@
 import { computed, onScopeDispose, ref } from 'vue'
 import { Color, MathUtils } from 'three'
 import { sunDirection, sunPosition } from '../lib/sun'
-import { LOCATION, playbackDate, useWindData } from './useWindData'
+import { useLocation } from './useLocation'
+import { playbackDate, useWindData } from './useWindData'
 
 const NIGHT_TOP = new Color('#060b18')
 const NIGHT_HORIZON = new Color('#1a2440')
@@ -23,6 +24,7 @@ const hex = (c: Color) => `#${c.getHexString()}`
 /** Licht en luchtkleuren op basis van de echte zonnestand (of het gesimuleerde uur) en de bewolking. */
 export function useEnvironment() {
   const { wind, simulation, playbackHours } = useWindData()
+  const { place } = useLocation()
   if (users++ === 0) timer = setInterval(() => (now.value = new Date()), 30_000)
   onScopeDispose(() => {
     if (--users === 0) clearInterval(timer)
@@ -35,13 +37,13 @@ export function useEnvironment() {
       const replay = playbackHours.value === null ? null : playbackDate(wind.value.forecast, playbackHours.value)
       return replay ?? now.value
     }
-    const d = new Date(now.value)
-    d.setHours(0, 0, 0, 0)
-    d.setTime(d.getTime() + sim.hour * 3600_000)
-    return d
+    // Middernacht in de gekozen stad + het gesimuleerde uur
+    const offset = wind.value.utcOffsetSeconds * 1000
+    const local = now.value.getTime() + offset
+    return new Date(local - (local % 86400_000) - offset + sim.hour * 3600_000)
   })
 
-  const sun = computed(() => sunPosition(date.value, LOCATION.latitude, LOCATION.longitude))
+  const sun = computed(() => sunPosition(date.value, place.value.latitude, place.value.longitude))
   const elevationDeg = computed(() => MathUtils.radToDeg(sun.value.altitude))
   /** 0 = nacht, 1 = volle dag (met schemering ertussen) */
   const daylight = computed(() => MathUtils.smoothstep(elevationDeg.value, -7, 7))
