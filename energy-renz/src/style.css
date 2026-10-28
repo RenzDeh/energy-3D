@@ -15,6 +15,23 @@
   --ui-radius: 20px;
   --ui-shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 12px 40px rgb(10 30 40 / 0.18);
   --ui-font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* Ruimte tussen de blokken in de zijkaart; krimpt op lage schermen zodat alles zonder scrollen past */
+  --ui-section-gap: 18px;
+  --ui-block-gap: 10px;
+  --ui-pad: 18px;
+}
+@media (max-height: 760px) {
+  :root {
+    --ui-section-gap: 13px;
+    --ui-block-gap: 8px;
+    --ui-pad: 12px;
+  }
+}
+/* Bijzaken die op lage schermen wegvallen om plaats te maken */
+@media (max-height: 700px) and (min-width: 721px) {
+  .ui-optional {
+    display: none !important;
+  }
 }
 
 html,
@@ -47,7 +64,9 @@ body {
 }
 .ui-card button,
 .ui-card input,
-.ui-card select { font-family: inherit; }
+.ui-card select {
+  font-family: inherit;
+}
 .ui-card :focus-visible {
   outline: 2px solid var(--ui-blue);
   outline-offset: 2px;

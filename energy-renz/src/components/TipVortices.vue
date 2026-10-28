@@ -22,7 +22,7 @@ const POINTS = 90
 const DURATION = 3.6 // seconden spoor
 
 const ribbons = new Ribbons(BLADES, POINTS, { color: props.color, opacity: 0.55 })
-for (let b = 0; b < BLADES; b++) ribbons.width[b] = 0.28
+for (let b = 0; b < BLADES; b++) { ribbons.width[b] = 0.28 }
 
 const { camera } = useTres()
 const cam = new Vector3()

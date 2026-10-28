@@ -47,7 +47,7 @@ interface GeocodingResult {
 function load(): Place {
   try {
     const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) return { ...DEFAULT_PLACE, ...JSON.parse(saved) }
+    if (saved) { return { ...DEFAULT_PLACE, ...JSON.parse(saved) } }
   }
   catch {}
   return DEFAULT_PLACE
@@ -65,10 +65,10 @@ watch(place, (p) => {
 /** Steden zoeken op naam (minstens 2 letters). */
 export async function searchPlaces(query: string, signal?: AbortSignal): Promise<Place[]> {
   const name = query.trim()
-  if (name.length < 2) return []
+  if (name.length < 2) { return [] }
   const params = new URLSearchParams({ name, count: '6', language: 'nl', format: 'json' })
   const res = await fetch(`${GEOCODING_API}?${params}`, { signal })
-  if (!res.ok) throw new Error(`Zoeken mislukt (${res.status})`)
+  if (!res.ok) { throw new Error(`Zoeken mislukt (${res.status})`) }
   const json: { results?: GeocodingResult[] } = await res.json()
   return (json.results ?? []).map(r => ({
     name: r.name,

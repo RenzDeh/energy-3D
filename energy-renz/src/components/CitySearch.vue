@@ -34,10 +34,10 @@ watch(query, (q) => {
     try {
       results.value = await searchPlaces(q, controller.signal)
       active.value = 0
-      if (!results.value.length) message.value = 'Geen stad gevonden'
+      if (!results.value.length) { message.value = 'Geen stad gevonden' }
     }
     catch (e) {
-      if ((e as Error).name === 'AbortError') return
+      if ((e as Error).name === 'AbortError') { return }
       results.value = []
       message.value = 'Zoeken lukt nu niet'
     }
@@ -46,7 +46,7 @@ watch(query, (q) => {
 })
 
 function onDocument(e: PointerEvent) {
-  if (!root.value?.contains(e.target as Node)) close()
+  if (!root.value?.contains(e.target as Node)) { close() }
 }
 
 async function show() {
@@ -71,11 +71,19 @@ function choose(p: Place) {
 }
 
 function onKey(e: KeyboardEvent) {
-  if (e.key === 'Escape') close()
-  else if (e.key === 'ArrowDown') active.value = Math.min(active.value + 1, results.value.length - 1)
-  else if (e.key === 'ArrowUp') active.value = Math.max(active.value - 1, 0)
-  else if (e.key === 'Enter' && results.value[active.value]) choose(results.value[active.value])
-  else return
+  if (e.key === 'Escape') {
+    close()
+  }
+  else if (e.key === 'ArrowDown') {
+    active.value = Math.min(active.value + 1, results.value.length - 1)
+  }
+  else if (e.key === 'ArrowUp') {
+    active.value = Math.max(active.value - 1, 0)
+  }
+  else if (e.key === 'Enter' && results.value[active.value]) {
+    choose(results.value[active.value])
+  }
+  else { return }
   e.preventDefault()
 }
 
@@ -107,7 +115,7 @@ onBeforeUnmount(close)
         aria-controls="city-results"
         autocomplete="off"
         @keydown="onKey"
-      >
+      />
     </div>
     <ul v-if="open && (results.length || message || busy)" id="city-results" class="ui-card" role="listbox">
       <li v-if="busy && !results.length" class="note">Zoeken…</li>
@@ -128,7 +136,10 @@ onBeforeUnmount(close)
 </template>
 
 <style scoped>
-.city { position: relative; min-width: 0; }
+.city {
+  position: relative;
+  min-width: 0;
+}
 .current {
   display: flex;
   align-items: center;
@@ -142,9 +153,17 @@ onBeforeUnmount(close)
   border-radius: 12px;
   cursor: pointer;
 }
-.current:hover { background: var(--ui-surface-soft); }
-.current > .icon:first-child { color: var(--ui-accent); }
-.name { display: flex; flex-direction: column; min-width: 0; }
+.current:hover {
+  background: var(--ui-surface-soft);
+}
+.current > .icon:first-child {
+  color: var(--ui-accent);
+}
+.name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
 h1 {
   margin: 0;
   overflow: hidden;
@@ -155,8 +174,13 @@ h1 {
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-.name small { font-size: 12px; color: var(--ui-muted); }
-.hint { color: var(--ui-muted); }
+.name small {
+  font-size: 12px;
+  color: var(--ui-muted);
+}
+.hint {
+  color: var(--ui-muted);
+}
 .search {
   display: flex;
   align-items: center;
@@ -196,13 +220,30 @@ li {
   border-radius: 10px;
   cursor: pointer;
 }
-li[aria-selected='true'] { background: var(--ui-surface-soft); }
-li b { font-size: 14px; font-weight: 600; }
-li small { font-size: 12px; color: var(--ui-muted); }
-li.note { cursor: default; font-size: 13px; color: var(--ui-muted); }
+li[aria-selected='true'] {
+  background: var(--ui-surface-soft);
+}
+li b {
+  font-size: 14px;
+  font-weight: 600;
+}
+li small {
+  font-size: 12px;
+  color: var(--ui-muted);
+}
+li.note {
+  cursor: default;
+  font-size: 13px;
+  color: var(--ui-muted);
+}
 
 @media (max-width: 720px) {
-  .search { width: 100%; box-sizing: border-box; }
-  ul { width: calc(100vw - 16px - 16px); }
+  .search {
+    width: 100%;
+    box-sizing: border-box;
+  }
+  ul {
+    width: calc(100vw - 16px - 16px);
+  }
 }
 </style>

@@ -48,10 +48,10 @@ const activePreset = computed(() => PRESETS.find(p => simulation.value && p.valu
             :value="position"
             aria-label="Tijdstip"
             @input="onSeek"
-          >
+          />
         </div>
       </div>
-      <p class="help">Bekijk hoe wind, zon en stroomprijs veranderen in de loop van de dag.</p>
+      <p class="help ui-optional">Bekijk hoe wind, zon en stroomprijs veranderen in de loop van de dag.</p>
     </section>
 
     <!-- Weer kiezen -->
@@ -69,56 +69,78 @@ const activePreset = computed(() => PRESETS.find(p => simulation.value && p.valu
         </button>
       </div>
       <template v-if="simulation">
-        <label class="field">
-          <span>Wind <b>{{ fmt(msToKmh(simulation.speed10)) }} km/u</b></span>
-          <input class="ui-range" type="range" min="0" max="30" step="0.5" :value="simulation.speed10" @input="set('speed10', $event)">
-        </label>
-        <label class="field">
-          <span>Uur van de dag <b>{{ hourLabel(simulation.hour) }}</b></span>
-          <input class="ui-range" type="range" min="0" max="23.75" step="0.25" :value="simulation.hour" @input="set('hour', $event)">
-        </label>
+        <!-- Twee schuifjes naast elkaar, zodat de kaart zonder scrollen op het scherm past -->
+        <div class="grid">
+          <label class="field">
+            <span>Wind <b>{{ fmt(msToKmh(simulation.speed10)) }} km/u</b></span>
+            <input class="ui-range" type="range" min="0" max="30" step="0.5" :value="simulation.speed10" @input="set('speed10', $event)" />
+          </label>
+          <label class="field">
+            <span>Uur <b>{{ hourLabel(simulation.hour) }}</b></span>
+            <input class="ui-range" type="range" min="0" max="23.75" step="0.25" :value="simulation.hour" @input="set('hour', $event)" />
+          </label>
+          <template v-if="moreWeather">
+            <label class="field">
+              <span>Wolken <b>{{ simulation.cloudCover }}%</b></span>
+              <input class="ui-range" type="range" min="0" max="100" step="1" :value="simulation.cloudCover" @input="set('cloudCover', $event)" />
+            </label>
+            <label class="field">
+              <span>Regen <b>{{ fmt(simulation.precipitation, 1) }} mm</b></span>
+              <input class="ui-range" type="range" min="0" max="3" step="0.1" :value="simulation.precipitation" @input="set('precipitation', $event)" />
+            </label>
+            <label class="field">
+              <span>Richting <b>{{ simulation.directionDeg }}°</b></span>
+              <input class="ui-range" type="range" min="0" max="359" step="1" :value="simulation.directionDeg" @input="set('directionDeg', $event)" />
+            </label>
+          </template>
+        </div>
         <button type="button" class="link" :aria-expanded="moreWeather" @click="moreWeather = !moreWeather">
           {{ moreWeather ? 'Minder opties' : 'Meer opties' }}
         </button>
-        <template v-if="moreWeather">
-          <label class="field">
-            <span>Wolken <b>{{ simulation.cloudCover }}%</b></span>
-            <input class="ui-range" type="range" min="0" max="100" step="1" :value="simulation.cloudCover" @input="set('cloudCover', $event)">
-          </label>
-          <label class="field">
-            <span>Regen <b>{{ fmt(simulation.precipitation, 1) }} mm</b></span>
-            <input class="ui-range" type="range" min="0" max="3" step="0.1" :value="simulation.precipitation" @input="set('precipitation', $event)">
-          </label>
-          <label class="field">
-            <span>Windrichting <b>{{ simulation.directionDeg }}°</b></span>
-            <input class="ui-range" type="range" min="0" max="359" step="1" :value="simulation.directionDeg" @input="set('directionDeg', $event)">
-          </label>
-        </template>
       </template>
     </section>
 
     <!-- Windpark -->
     <section class="block">
       <p class="ui-label">Bouw je windpark</p>
-      <label class="field">
-        <span>Aantal molens <b>{{ turbineCount }}</b></span>
-        <input v-model.number="turbineCount" class="ui-range" type="range" min="1" :max="MAX_TURBINES" step="1">
-      </label>
-      <label class="field">
-        <span>Lengte van de wieken <b>{{ fmt(rotorScale * 100) }}%</b></span>
-        <input v-model.number="rotorScale" class="ui-range" type="range" min="0.7" max="1.3" step="0.05">
-      </label>
+      <div class="grid">
+        <label class="field">
+          <span>Molens <b>{{ turbineCount }}</b></span>
+          <input v-model.number="turbineCount" class="ui-range" type="range" min="1" :max="MAX_TURBINES" step="1" />
+        </label>
+        <label class="field">
+          <span>Wieken <b>{{ fmt(rotorScale * 100) }}%</b></span>
+          <input v-model.number="rotorScale" class="ui-range" type="range" min="0.7" max="1.3" step="0.05" />
+        </label>
+      </div>
       <p class="result"><Icon name="bolt" :size="16" /> Het park levert nu <b>{{ power(kw) }}</b></p>
     </section>
   </div>
 </template>
 
 <style scoped>
-.try { display: flex; flex-direction: column; gap: 22px; }
-.block { display: flex; flex-direction: column; gap: 12px; }
-.help { margin: 0; font-size: 13px; line-height: 1.45; color: var(--ui-muted); }
+.try {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ui-section-gap);
+}
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ui-block-gap);
+}
+.help {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ui-muted);
+}
 
-.player { display: flex; align-items: center; gap: 12px; }
+.player {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
 .play {
   display: grid;
   place-items: center;
@@ -132,9 +154,22 @@ const activePreset = computed(() => PRESETS.find(p => simulation.value && p.valu
   cursor: pointer;
   box-shadow: 0 4px 14px rgb(15 157 88 / 0.35);
 }
-.play:disabled { opacity: 0.4; cursor: default; }
-.track { flex: 1; display: flex; flex-direction: column; gap: 6px; }
-.time { display: flex; justify-content: space-between; align-items: baseline; font-size: 15px; }
+.play:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.track {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.time {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 15px;
+}
 
 .segments {
   display: flex;
@@ -160,9 +195,26 @@ const activePreset = computed(() => PRESETS.find(p => simulation.value && p.valu
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.1);
 }
 
-.field { display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--ui-muted); }
-.field span { display: flex; justify-content: space-between; }
-.field b { font-weight: 650; color: var(--ui-text); }
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--ui-block-gap) 18px;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--ui-muted);
+}
+.field span {
+  display: flex;
+  justify-content: space-between;
+}
+.field b {
+  font-weight: 650;
+  color: var(--ui-text);
+}
 
 .link {
   align-self: flex-start;
@@ -182,6 +234,10 @@ const activePreset = computed(() => PRESETS.find(p => simulation.value && p.valu
   font-size: 14px;
   color: var(--ui-muted);
 }
-.result b { color: var(--ui-text); }
-.result .icon { color: var(--ui-accent); }
+.result b {
+  color: var(--ui-text);
+}
+.result .icon {
+  color: var(--ui-accent);
+}
 </style>

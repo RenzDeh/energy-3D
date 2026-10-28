@@ -39,6 +39,8 @@ export interface WindData {
   observedAt: string | null
   /** Verwachting voor de komende 24 uur */
   forecast: ForecastPoint[]
+  /** Langere verwachting (48 uur) voor de planner, bv. om een auto traag aan het stopcontact te laden */
+  outlook: ForecastPoint[]
   /** Verschil tussen de lokale tijd van de stad en UTC (seconden) */
   utcOffsetSeconds: number
 }
@@ -72,7 +74,8 @@ const apiUrl = (p: Place) => `https://api.open-meteo.com/v1/forecast?${new URLSe
   hourly: 'wind_speed_10m,wind_speed_100m,wind_direction_10m,cloud_cover,precipitation',
   wind_speed_unit: 'ms',
   timezone: p.timezone,
-  forecast_days: '2',
+  // 3 dagen, zodat er vanaf elk uur van vandaag minstens 48 uur verwachting is
+  forecast_days: '3',
 })}`
 
 /** Lokale tijd van Open-Meteo ("2026-10-26T14:00") omzetten naar een echt tijdstip */
@@ -81,20 +84,21 @@ const toUnix = (iso: string, offsetSeconds: number) => Date.parse(`${iso}Z`) - o
 /** Wind op 100 m lineair interpoleren tussen de twee uren rond het huidige tijdstip. */
 function hubSpeedAt(time: string, hourly: OpenMeteoResponse['hourly']): number | null {
   const i = hourly.time.findLastIndex(t => t <= time)
-  if (i === -1) return null
+  if (i === -1) { return null }
   const a = hourly.wind_speed_100m[i]
   const b = hourly.wind_speed_100m[i + 1] ?? a
-  if (a == null || b == null) return a ?? null
+  if (a == null || b == null) { return a ?? null }
   const minutes = Number(time.slice(14, 16)) || 0
   return a + (b - a) * (minutes / 60)
 }
 
-function forecastFrom(time: string, hourly: OpenMeteoResponse['hourly'], offset: number): ForecastPoint[] {
+/** `count` uurpunten vanaf het huidige uur */
+function forecastFrom(time: string, hourly: OpenMeteoResponse['hourly'], offset: number, count: number): ForecastPoint[] {
   const start = Math.max(0, hourly.time.findLastIndex(t => t <= time))
   const points: ForecastPoint[] = []
-  for (let i = start; i < Math.min(start + 25, hourly.time.length); i++) {
+  for (let i = start; i < Math.min(start + count, hourly.time.length); i++) {
     const speed10 = hourly.wind_speed_10m[i]
-    if (speed10 == null) continue
+    if (speed10 == null) { continue }
     points.push({
       time: hourly.time[i].slice(11, 16),
       iso: hourly.time[i],
@@ -112,9 +116,10 @@ function forecastFrom(time: string, hourly: OpenMeteoResponse['hourly'], offset:
 
 async function fetchWind(p: Place): Promise<WindData> {
   const res = await fetch(apiUrl(p), { signal: AbortSignal.timeout(TIMEOUT_MS) })
-  if (!res.ok) throw new Error(`Open-Meteo antwoordde met ${res.status}`)
+  if (!res.ok) { throw new Error(`Open-Meteo antwoordde met ${res.status}`) }
   const json: OpenMeteoResponse = await res.json()
   const c = json.current
+  const outlook = forecastFrom(c.time, json.hourly, json.utc_offset_seconds, 49)
   return {
     speed10: c.wind_speed_10m,
     // Zonder 100 m-data schatten we de ashoogte-wind met een typische windprofielfactor
@@ -126,7 +131,8 @@ async function fetchWind(p: Place): Promise<WindData> {
     cloudCover: c.cloud_cover,
     precipitation: c.precipitation,
     observedAt: c.time.slice(11, 16),
-    forecast: forecastFrom(c.time, json.hourly, json.utc_offset_seconds),
+    forecast: outlook.slice(0, 25),
+    outlook,
     utcOffsetSeconds: json.utc_offset_seconds,
   }
 }
@@ -145,7 +151,7 @@ export interface Simulation {
 function readOverride(): Simulation | null {
   const params = new URLSearchParams(window.location.search)
   const keys = ['wind', 'dir', 'rain', 'clouds', 'hour']
-  if (!keys.some(k => params.has(k))) return null
+  if (!keys.some(k => params.has(k))) { return null }
   const num = (key: string, fallback: number) => (params.has(key) ? Number(params.get(key)) : fallback)
   const now = new Date()
   return {
@@ -174,15 +180,15 @@ async function refresh() {
   try {
     const data = await fetchWind(p)
     // Intussen een andere stad gekozen: dit antwoord is niet meer nodig
-    if (p !== place.value) return
+    if (p !== place.value) { return }
     live.value = data
     error.value = null
   }
   catch (e) {
-    if (p === place.value) error.value = e instanceof Error ? e.message : 'Onbekende fout'
+    if (p === place.value) { error.value = e instanceof Error ? e.message : 'Onbekende fout' }
   }
   finally {
-    if (p === place.value) loading.value = false
+    if (p === place.value) { loading.value = false }
   }
 }
 
@@ -191,12 +197,12 @@ watch(place, () => {
   live.value = null
   error.value = null
   playbackHours.value = null
-  if (users) refresh()
+  if (users) { refresh() }
 })
 
 /** Verwachting op een willekeurig moment (uren na het eerste uur), lineair geïnterpoleerd. */
 export function forecastAt(forecast: ForecastPoint[], hours: number): ForecastPoint | null {
-  if (!forecast.length) return null
+  if (!forecast.length) { return null }
   const i = Math.min(Math.max(Math.floor(hours), 0), forecast.length - 1)
   const a = forecast[i]
   const b = forecast[Math.min(i + 1, forecast.length - 1)]
@@ -216,7 +222,7 @@ export function forecastAt(forecast: ForecastPoint[], hours: number): ForecastPo
 
 /** Tijdstip dat bij een afspeelpositie hoort */
 export function playbackDate(forecast: ForecastPoint[], hours: number): Date | null {
-  if (!forecast.length) return null
+  if (!forecast.length) { return null }
   return new Date(forecast[0].unix + hours * 3600_000)
 }
 
@@ -232,13 +238,14 @@ const wind = computed<WindData>(() => {
     precipitation: 0,
     observedAt: null,
     forecast: [],
+    outlook: [],
     utcOffsetSeconds: 0,
     ...live.value,
   }
   const sim = simulation.value
   if (!sim) {
     const at = playbackHours.value === null ? null : forecastAt(base.forecast, playbackHours.value)
-    if (!at) return base
+    if (!at) { return base }
     const date = playbackDate(base.forecast, playbackHours.value!)!
     return {
       ...base,
@@ -265,10 +272,10 @@ const wind = computed<WindData>(() => {
 export type WindStatus = 'loading' | 'live' | 'stale' | 'offline' | 'sim' | 'replay'
 
 const status = computed<WindStatus>(() => {
-  if (simulation.value) return 'sim'
-  if (playbackHours.value !== null && live.value) return 'replay'
-  if (error.value) return live.value ? 'stale' : 'offline'
-  if (!live.value) return 'loading'
+  if (simulation.value) { return 'sim' }
+  if (playbackHours.value !== null && live.value) { return 'replay' }
+  if (error.value) { return live.value ? 'stale' : 'offline' }
+  if (!live.value) { return 'loading' }
   return 'live'
 })
 
@@ -295,7 +302,7 @@ export const PRESETS = [
 
 /** Instellingen van de simulatie aanpassen; start de simulatie als die nog niet loopt. */
 function updateSimulation(values: Partial<Simulation>) {
-  if (!simulation.value) startSimulation()
+  if (!simulation.value) { startSimulation() }
   simulation.value = { ...simulation.value!, ...values }
 }
 
@@ -305,7 +312,7 @@ function applyPreset(values: (typeof PRESETS)[number]['values']) {
 
 function stopSimulation() {
   simulation.value = null
-  if (window.location.search) history.replaceState(null, '', window.location.pathname)
+  if (window.location.search) { history.replaceState(null, '', window.location.pathname) }
 }
 
 export function useWindData() {
@@ -314,7 +321,7 @@ export function useWindData() {
     timer = setInterval(refresh, REFRESH_MS)
   }
   onScopeDispose(() => {
-    if (--users === 0) clearInterval(timer)
+    if (--users === 0) { clearInterval(timer) }
   })
   return { wind, status, error, loading, refresh, simulation, startSimulation, stopSimulation, updateSimulation, applyPreset, playbackHours }
 }

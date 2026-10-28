@@ -63,10 +63,10 @@ useLoop().onBeforeRender(({ delta }) => {
   clouds.forEach((c, i) => {
     c.x += props.windDir.x * drift
     c.z += props.windDir.z * drift
-    if (c.x > half) c.x -= SPAN
-    else if (c.x < -half) c.x += SPAN
-    if (c.z > half) c.z -= SPAN
-    else if (c.z < -half) c.z += SPAN
+    if (c.x > half) { c.x -= SPAN }
+    else if (c.x < -half) { c.x += SPAN }
+    if (c.z > half) { c.z -= SPAN }
+    else if (c.z < -half) { c.z += SPAN }
     // Rustig in- en uitfaden als de bewolking verandert, en aan de rand van het veld
     const edge = 1 - MathUtils.smoothstep(Math.max(Math.abs(c.x), Math.abs(c.z)), half * 0.8, half)
     visible[i] = MathUtils.damp(visible[i], i < target ? 1 : 0, 0.8, delta)

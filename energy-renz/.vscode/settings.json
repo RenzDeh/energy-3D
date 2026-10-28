@@ -1,0 +1,12 @@
+{
+  // Dit project gebruikt ESLint (stijl van @tresjs/eslint-config) voor de opmaak, niet Prettier.
+  // Prettier staat hier uit, zodat het bij opslaan niet botst met de ESLint-regels.
+  "prettier.enable": false,
+  "editor.formatOnSave": false,
+  "editor.formatOnPaste": false,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit",
+    "source.organizeImports": "never"
+  },
+  "eslint.validate": ["javascript", "typescript", "vue", "html", "markdown", "json", "jsonc", "yaml", "css"]
+}

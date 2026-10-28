@@ -20,7 +20,7 @@ import {
 } from 'three'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { useLocation } from '../composables/useLocation'
-import { BRIDGE, CHURCH, OFFICE, TOWN_HALL, TOWN_LABEL, houses } from '../lib/town'
+import { BRIDGE, CHURCH, houses, OFFICE, TOWN_HALL, TOWN_LABEL } from '../lib/town'
 import { RIVER, WATER_LEVEL } from '../lib/terrain'
 
 const props = defineProps<{
@@ -58,7 +58,7 @@ function merge(list: BufferGeometry[]): BufferGeometry {
 
 /** Geometrie verplaatsen/draaien en teruggeven, om daarna samen te voegen. */
 function place<T extends BufferGeometry>(g: T, x: number, y: number, z: number, ry = 0): T {
-  if (ry) g.rotateY(ry)
+  if (ry) { g.rotateY(ry) }
   g.translate(x, y, z)
   return g
 }
@@ -210,7 +210,7 @@ const LIT = new Color('#ffd27a').multiplyScalar(1.6)
 const UNLIT = new Color('#2b3036')
 let litCount = -1
 function updateWindows(count: number) {
-  if (count === litCount) return
+  if (count === litCount) { return }
   litCount = count
   lightOrder.forEach((house, rank) => windows.setColorAt(house, rank < count ? LIT : UNLIT))
   windows.instanceColor!.needsUpdate = true
@@ -230,7 +230,7 @@ const water = keep((() => {
     const cx = RIVER.origin.x + RIVER.dir.x * along + perp.x * meander
     const cz = RIVER.origin.z + RIVER.dir.z * along + perp.z * meander
     positions.push(cx - perp.x * half, WATER_LEVEL, cz - perp.z * half, cx + perp.x * half, WATER_LEVEL, cz + perp.z * half)
-    if (i < steps) indices.push(i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 1, i * 2 + 3, i * 2 + 2)
+    if (i < steps) { indices.push(i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 1, i * 2 + 3, i * 2 + 2) }
   }
   const g = new BufferGeometry()
   g.setAttribute('position', new BufferAttribute(new Float32Array(positions), 3))
@@ -238,7 +238,7 @@ const water = keep((() => {
   g.computeVertexNormals()
   // Normalen naar boven richten, ongeacht de volgorde van de driehoeken
   g.attributes.normal.array.fill(0)
-  for (let i = 1; i < g.attributes.normal.array.length; i += 3) (g.attributes.normal.array as Float32Array)[i] = 1
+  for (let i = 1; i < g.attributes.normal.array.length; i += 3) { (g.attributes.normal.array as Float32Array)[i] = 1 }
   return g
 })())
 
@@ -300,7 +300,12 @@ onUnmounted(() => disposables.forEach(d => d.dispose()))
 .landmark {
   display: inline-block;
   padding: 3px 8px;
-  font: 600 11px/1.3 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font:
+    600 11px/1.3 system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
   color: #eef4f7;
   white-space: nowrap;
   background: rgb(14 24 33 / 0.6);

@@ -9,9 +9,9 @@ export const MAX_RPM = 15
 export type TurbineState = 'idle' | 'running' | 'rated' | 'storm'
 
 export function turbineState(v: number): TurbineState {
-  if (v < CUT_IN) return 'idle'
-  if (v > CUT_OUT) return 'storm'
-  if (v >= RATED_SPEED) return 'rated'
+  if (v < CUT_IN) { return 'idle' }
+  if (v > CUT_OUT) { return 'storm' }
+  if (v >= RATED_SPEED) { return 'rated' }
   return 'running'
 }
 
@@ -25,8 +25,8 @@ export const STATE_LABEL: Record<TurbineState, string> = {
 /** Geschat vermogen in kW: kubisch tussen cut-in en nominaal, daarna vlak. */
 export function powerKw(v: number): number {
   const state = turbineState(v)
-  if (state === 'idle' || state === 'storm') return 0
-  if (state === 'rated') return RATED_POWER_KW
+  if (state === 'idle' || state === 'storm') { return 0 }
+  if (state === 'rated') { return RATED_POWER_KW }
   const t = (v ** 3 - CUT_IN ** 3) / (RATED_SPEED ** 3 - CUT_IN ** 3)
   return RATED_POWER_KW * t
 }
@@ -34,8 +34,8 @@ export function powerKw(v: number): number {
 /** Rotortoerental: lineair van MIN_RPM bij cut-in tot MAX_RPM bij nominale wind. */
 export function rotorRpm(v: number): number {
   const state = turbineState(v)
-  if (state === 'idle' || state === 'storm') return 0
-  if (state === 'rated') return MAX_RPM
+  if (state === 'idle' || state === 'storm') { return 0 }
+  if (state === 'rated') { return MAX_RPM }
   return MIN_RPM + ((v - CUT_IN) / (RATED_SPEED - CUT_IN)) * (MAX_RPM - MIN_RPM)
 }
 
@@ -58,7 +58,7 @@ const BEAUFORT_NAMES = [
 
 export function beaufort(v: number): { force: number, name: string } {
   let force = BEAUFORT_LIMITS.findIndex(limit => v < limit)
-  if (force === -1) force = 12
+  if (force === -1) { force = 12 }
   return { force, name: BEAUFORT_NAMES[force] }
 }
 

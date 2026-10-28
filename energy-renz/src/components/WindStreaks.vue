@@ -46,7 +46,7 @@ function spawn(i: number, anywhere: boolean) {
   ribbons.width[i] = 0.12 + Math.random() * 0.22
   ribbons.reset(i, t.x, t.y, t.z)
 }
-for (let i = 0; i < COUNT; i++) spawn(i, true)
+for (let i = 0; i < COUNT; i++) { spawn(i, true) }
 
 const v = new Vector3()
 let speed = props.windSpeed
@@ -98,7 +98,7 @@ function sampleWind(x: number, y: number, z: number, time: number) {
   }
 
   // Niet door de grond
-  if (y < 0.6) v.y += (0.6 - y) * 2
+  if (y < 0.6) { v.y += (0.6 - y) * 2 }
   return v
 }
 
@@ -140,10 +140,10 @@ useLoop().onBeforeRender(({ delta, elapsed }) => {
     const fade = MathUtils.smoothstep(t.age, 0, 1.2) * (1 - MathUtils.smoothstep(t.age, t.life - 1.5, t.life))
     ribbons.alpha[i] = fade * MathUtils.clamp(density - i, 0, 1)
 
-    if (t.age > t.life || Math.hypot(t.x, t.z) > RADIUS * 1.25) spawn(i, false)
+    if (t.age > t.life || Math.hypot(t.x, t.z) > RADIUS * 1.25) { spawn(i, false) }
   }
 
-  if (camera.value) cam.setFromMatrixPosition(camera.value.matrixWorld)
+  if (camera.value) { cam.setFromMatrixPosition(camera.value.matrixWorld) }
   ribbons.update(cam)
 })
 

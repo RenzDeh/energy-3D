@@ -25,9 +25,9 @@ const hex = (c: Color) => `#${c.getHexString()}`
 export function useEnvironment() {
   const { wind, simulation, playbackHours } = useWindData()
   const { place } = useLocation()
-  if (users++ === 0) timer = setInterval(() => (now.value = new Date()), 30_000)
+  if (users++ === 0) { timer = setInterval(() => (now.value = new Date()), 30_000) }
   onScopeDispose(() => {
-    if (--users === 0) clearInterval(timer)
+    if (--users === 0) { clearInterval(timer) }
   })
 
   const date = computed(() => {

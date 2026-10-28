@@ -1,5 +1,5 @@
 import { computed, ref, watch } from 'vue'
-import { RATED_POWER_KW, powerKw } from '../lib/turbine'
+import { powerKw, RATED_POWER_KW } from '../lib/turbine'
 import { useLocation } from './useLocation'
 import { useWindData } from './useWindData'
 
@@ -34,7 +34,7 @@ export function useEnergy() {
   if (!watching) {
     watching = true
     watch(simulation, (sim) => {
-      if (sim) pause()
+      if (sim) { pause() }
     })
   }
 
@@ -46,6 +46,8 @@ export function useEnergy() {
 
   /** Vermogen per uur volgens de verwachting */
   const curve = computed(() => wind.value.forecast.map(p => ({ time: p.time, iso: p.iso, kw: farmKw(p.speed100) })))
+  /** Hetzelfde over 48 uur, voor de planner */
+  const outlookCurve = computed(() => wind.value.outlook.map(p => ({ time: p.time, iso: p.iso, kw: farmKw(p.speed100) })))
   const hours = computed(() => Math.max(0, curve.value.length - 1))
 
   /** Energie (kWh) tussen het begin van de verwachting en `t` uur later (trapeziumregel) */
@@ -80,9 +82,9 @@ export function useEnergy() {
   }
 
   function play() {
-    if (!hours.value) return
-    if (simulation.value) simulation.value = null
-    if (playbackHours.value === null || playbackHours.value >= hours.value) playbackHours.value = 0
+    if (!hours.value) { return }
+    if (simulation.value) { simulation.value = null }
+    if (playbackHours.value === null || playbackHours.value >= hours.value) { playbackHours.value = 0 }
     playing.value = true
     cancelAnimationFrame(raf)
     last = performance.now()
@@ -101,7 +103,7 @@ export function useEnergy() {
   }
 
   function seek(t: number) {
-    if (simulation.value) simulation.value = null
+    if (simulation.value) { simulation.value = null }
     playbackHours.value = Math.min(Math.max(t, 0), hours.value)
   }
 
@@ -112,6 +114,7 @@ export function useEnergy() {
     cityShare,
     cityHouseholds,
     curve,
+    outlookCurve,
     hours,
     position,
     energyKwh,
@@ -128,4 +131,3 @@ export function useEnergy() {
     seek,
   }
 }
-

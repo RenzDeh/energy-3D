@@ -47,9 +47,9 @@ export function houses(): House[] {
       const x = CITY.x + dir.x * s + perp.x * street * 7
       const z = CITY.z + dir.z * s + perp.z * street * 7
       s += w + (rand() < 0.12 ? 5 : 0.05)
-      if (Math.hypot(x - CITY.x, z - CITY.z) > CITY.radius * (0.75 + rand() * 0.25)) continue
-      if (Math.abs(riverCoords(x, z).across) < RIVER.width / 2 + 4) continue
-      if (keepClear.some(c => Math.hypot(x - c.x, z - c.z) < c.r)) continue
+      if (Math.hypot(x - CITY.x, z - CITY.z) > CITY.radius * (0.75 + rand() * 0.25)) { continue }
+      if (Math.abs(riverCoords(x, z).across) < RIVER.width / 2 + 4) { continue }
+      if (keepClear.some(c => Math.hypot(x - c.x, z - c.z) < c.r)) { continue }
       list.push({
         x,
         y: terrainHeight(x, z),

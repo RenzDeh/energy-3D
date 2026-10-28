@@ -32,7 +32,7 @@ function createBladeGeometry(): BufferGeometry {
     { y: 0.75, w: 0.026 },
   ]
   const positions: number[] = []
-  for (const { y, w } of rows) positions.push(-w, y, 0, w, y, 0)
+  for (const { y, w } of rows) { positions.push(-w, y, 0, w, y, 0) }
   positions.push(0, 1, 0)
   const indices = [0, 1, 2, 1, 3, 2, 2, 3, 4, 3, 5, 4, 4, 5, 6]
   const geometry = new BufferGeometry()

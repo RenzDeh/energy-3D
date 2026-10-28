@@ -79,7 +79,7 @@ export class Ribbons {
         t[v] = t[v + 1] = j / (n - 1)
         side[v] = -1
         side[v + 1] = 1
-        if (j < n - 1) indices.push(v, v + 1, v + 2, v + 1, v + 3, v + 2)
+        if (j < n - 1) { indices.push(v, v + 1, v + 2, v + 1, v + 3, v + 2) }
       }
     }
 
@@ -130,8 +130,8 @@ export class Ribbons {
     for (let i = 0; i < this.count; i++) {
       const a = this.alpha[i]
       const base = i * n
-      for (let j = 0; j < n; j++) this.alphaAttr[(base + j) * 2] = this.alphaAttr[(base + j) * 2 + 1] = a
-      if (a <= 0) continue
+      for (let j = 0; j < n; j++) { this.alphaAttr[(base + j) * 2] = this.alphaAttr[(base + j) * 2 + 1] = a }
+      if (a <= 0) { continue }
 
       const halfWidth = this.width[i] * 0.5
       for (let j = 0; j < n; j++) {

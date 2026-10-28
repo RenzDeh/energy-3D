@@ -24,7 +24,7 @@ export function treeSpots(): TreeSpot[] {
     && Math.hypot(x - OFFICE.x, z - OFFICE.z) > OFFICE.radius + 4
 
   const add = (x: number, z: number, park = false) => {
-    if (!free(x, z, park)) return
+    if (!free(x, z, park)) { return }
     spots.push({ x, y: terrainHeight(x, z), z, scale: 2.2 + rand() * 1.8, rotation: rand() * Math.PI * 2, hue: rand() })
   }
 
@@ -51,7 +51,7 @@ export function treeSpots(): TreeSpot[] {
     const cx = Math.cos(a) * r
     const cz = Math.sin(a) * r
     const n = 4 + Math.floor(rand() * 8)
-    for (let k = 0; k < n; k++) add(cx + (rand() - 0.5) * 12, cz + (rand() - 0.5) * 12)
+    for (let k = 0; k < n; k++) { add(cx + (rand() - 0.5) * 12, cz + (rand() - 0.5) * 12) }
   }
   return spots
 }

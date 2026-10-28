@@ -53,7 +53,7 @@ const fieldChunk = /* glsl */ `
 
 // --- Stof ---
 const dustSeeds = new Float32Array(DUST * 4)
-for (let i = 0; i < dustSeeds.length; i++) dustSeeds[i] = Math.random()
+for (let i = 0; i < dustSeeds.length; i++) { dustSeeds[i] = Math.random() }
 const dustGeometry = new BufferGeometry()
 dustGeometry.setAttribute('position', new BufferAttribute(new Float32Array(DUST * 3), 3))
 dustGeometry.setAttribute('aSeed', new BufferAttribute(dustSeeds, 4))
@@ -109,10 +109,10 @@ dust.frustumCulled = false
 const leafGeometry = new PlaneGeometry(0.26, 0.16, 2, 1)
 // Licht geplooid, zodat een blad niet plat oogt
 const lp = leafGeometry.attributes.position
-for (let i = 0; i < lp.count; i++) lp.setZ(i, Math.abs(lp.getX(i)) * 0.35)
+for (let i = 0; i < lp.count; i++) { lp.setZ(i, Math.abs(lp.getX(i)) * 0.35) }
 leafGeometry.computeVertexNormals()
 const leafSeeds = new Float32Array(LEAVES * 4)
-for (let i = 0; i < leafSeeds.length; i++) leafSeeds[i] = Math.random()
+for (let i = 0; i < leafSeeds.length; i++) { leafSeeds[i] = Math.random() }
 leafGeometry.setAttribute('aSeed', new InstancedBufferAttribute(leafSeeds, 4))
 
 const leafMaterial = new MeshStandardMaterial({ side: DoubleSide, roughness: 0.8 })
@@ -149,7 +149,7 @@ leafMaterial.onBeforeCompile = (shader) => {
 const leaves = new InstancedMesh(leafGeometry, leafMaterial, LEAVES)
 leaves.frustumCulled = false
 const palette = ['#c2662d', '#d99a2b', '#9c3d23', '#b5872f', '#7d6a2b'].map(c => new Color(c))
-for (let i = 0; i < LEAVES; i++) leaves.setColorAt(i, palette[i % palette.length])
+for (let i = 0; i < LEAVES; i++) { leaves.setColorAt(i, palette[i % palette.length]) }
 
 let speed = props.windSpeed
 useLoop().onBeforeRender(({ delta, elapsed }) => {

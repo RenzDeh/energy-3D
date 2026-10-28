@@ -17,6 +17,9 @@ const ICONS = {
   dryer: '<rect x="4" y="3" width="16" height="18" rx="2.5"/><circle cx="12" cy="13" r="4.5"/><path d="M10.5 13a1.5 1.5 0 1 1 1.5 1.5"/><path d="M8 6.5h.01"/>',
   boiler: '<rect x="6" y="3" width="12" height="18" rx="3"/><path d="M12 9c-1.5 2-2.2 3.1-2.2 4a2.2 2.2 0 0 0 4.4 0c0-.9-.7-2-2.2-4Z"/>',
   bolt: '<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/>',
+  battery: '<rect x="3" y="7" width="16" height="10" rx="2"/><path d="M22 11v2"/><path d="m11.5 9-2 3h3l-2 3"/>',
+  heatpump: '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="10" cy="12" r="4"/><path d="M10 8v8M6 12h8M17 9h1M17 12h1M17 15h1"/>',
+  sauna: '<path d="M8 3c-1 1.5 1 2.5 0 4M12 3c-1 1.5 1 2.5 0 4M16 3c-1 1.5 1 2.5 0 4"/><path d="M3 12h18M5 12v8M19 12v8M3 16h18"/>',
   home: '<path d="m3 11 9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/>',
   leaf: '<path d="M5 20c0-9 5-15 15-15 0 10-6 15-14 15"/><path d="M5 20c3-4 6-7 9.5-9"/>',
   play: '<path d="M7 4.5v15l12-7.5-12-7.5Z" fill="currentColor"/>',
@@ -50,5 +53,8 @@ const ICONS = {
 </template>
 
 <style scoped>
-.icon { flex: none; display: block; }
+.icon {
+  flex: none;
+  display: block;
+}
 </style>

@@ -5,11 +5,11 @@ import { MathUtils } from 'three'
 import type { Group } from 'three'
 import {
   BLADE_LENGTH,
-  HUB_Z,
-  TOWER_HEIGHT,
   createBladeMaterial,
   geometries as g,
+  HUB_Z,
   materials as m,
+  TOWER_HEIGHT,
   towerRadius,
 } from '../lib/turbineParts'
 import TipVortices from './TipVortices.vue'
@@ -79,17 +79,17 @@ onBeforeRender(({ delta, elapsed }) => {
   rotor.angle += rotor.omega * delta
   // Het zog stroomt trager weg dan de vrije wind: de rotor heeft er energie uit gehaald
   rotor.wake = MathUtils.damp(rotor.wake, Math.max(props.hubSpeed * 0.65, 1.5), 1, delta)
-  if (rotorRef.value) rotorRef.value.rotation.z = rotor.angle
+  if (rotorRef.value) { rotorRef.value.rotation.z = rotor.angle }
 
   // Gondel draait traag mee met de windrichting (kortste weg)
   const diff = MathUtils.euclideanModulo(targetYaw.value - yaw + Math.PI, Math.PI * 2) - Math.PI
   yaw += diff * (1 - Math.exp(-0.8 * delta))
-  if (nacelleRef.value) nacelleRef.value.rotation.y = yaw
+  if (nacelleRef.value) { nacelleRef.value.rotation.y = yaw }
 
   // Bladhoek: vaanstand bij storm, licht bijgesteld boven nominale wind
   const pitchTarget = props.feathered ? Math.PI / 2 : MathUtils.clamp((props.hubSpeed - 12) * 0.03, 0, 0.35)
   pitch = MathUtils.damp(pitch, pitchTarget, 1.2, delta)
-  for (const blade of bladeRefs) blade.rotation.y = pitch
+  for (const blade of bladeRefs) { blade.rotation.y = pitch }
 
   // Stuwkracht ~ toerental: buigt de bladen en laat de toren licht meewiegen
   thrust = MathUtils.damp(thrust, rotor.omega / 1.57, 1, delta)
@@ -103,14 +103,14 @@ onBeforeRender(({ delta, elapsed }) => {
     swayRef.value.rotation.z = -lean * dx
   }
 
-  if (anemometerRef.value) anemometerRef.value.rotation.y -= delta * (0.5 + props.hubSpeed * 0.9)
+  if (anemometerRef.value) { anemometerRef.value.rotation.y -= delta * (0.5 + props.hubSpeed * 0.9) }
 
   // Obstakellicht: 's nachts knipperend (1 s aan, 1 s uit), overdag zacht aan
   m.light.emissiveIntensity = props.night ? (Math.floor(elapsed) % 2 === 0 ? 6 : 0.15) : 0.8
 })
 
 function setBlade(el: unknown, i: number) {
-  if (el) bladeRefs[i] = el as Group
+  if (el) { bladeRefs[i] = el as Group }
 }
 
 onUnmounted(() => bladeMaterial.dispose())

@@ -12,8 +12,10 @@ function run(command: string) {
   showExamples.value = false
 }
 function onMic() {
-  if (voiceSupported) listen()
-  else showExamples.value = !showExamples.value
+  if (voiceSupported) {
+    listen()
+  }
+  else { showExamples.value = !showExamples.value }
 }
 </script>
 
@@ -59,7 +61,12 @@ function onMic() {
 </template>
 
 <style scoped>
-.voice { position: relative; display: flex; align-items: center; gap: 4px; }
+.voice {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
 .mic {
   display: grid;
   place-items: center;
@@ -71,15 +78,21 @@ function onMic() {
   border-radius: 12px;
   cursor: pointer;
 }
-.mic:hover { filter: brightness(0.96); }
+.mic:hover {
+  filter: brightness(0.96);
+}
 .mic.on {
   color: #fff;
   background: var(--ui-bad);
   animation: ring 1.4s infinite;
 }
 @keyframes ring {
-  0% { box-shadow: 0 0 0 0 rgb(220 74 61 / 0.5); }
-  100% { box-shadow: 0 0 0 10px rgb(220 74 61 / 0); }
+  0% {
+    box-shadow: 0 0 0 0 rgb(220 74 61 / 0.5);
+  }
+  100% {
+    box-shadow: 0 0 0 10px rgb(220 74 61 / 0);
+  }
 }
 .ask {
   padding: 8px 10px;
@@ -91,7 +104,9 @@ function onMic() {
   border-radius: 10px;
   cursor: pointer;
 }
-.ask:hover { background: var(--ui-surface-soft); }
+.ask:hover {
+  background: var(--ui-surface-soft);
+}
 .popover {
   position: absolute;
   z-index: 10;
@@ -107,9 +122,15 @@ function onMic() {
   background: #fff;
   border-radius: 16px;
 }
-.popover span { color: var(--ui-muted); }
-.popover b { font-weight: 600; }
-.popover b.bad { color: var(--ui-bad); }
+.popover span {
+  color: var(--ui-muted);
+}
+.popover b {
+  font-weight: 600;
+}
+.popover b.bad {
+  color: var(--ui-bad);
+}
 .close {
   position: absolute;
   top: 10px;
@@ -120,7 +141,12 @@ function onMic() {
   border: 0;
   cursor: pointer;
 }
-.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
 .chips button {
   padding: 6px 10px;
   font-size: 13px;
@@ -130,13 +156,22 @@ function onMic() {
   border-radius: 999px;
   cursor: pointer;
 }
-.chips button:hover { background: var(--ui-accent-soft); }
+.chips button:hover {
+  background: var(--ui-accent-soft);
+}
 
 @media (max-width: 720px) {
-  .ask { display: none; }
-  .popover { width: calc(100vw - 32px); right: -8px; }
+  .ask {
+    display: none;
+  }
+  .popover {
+    width: calc(100vw - 32px);
+    right: -8px;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .mic.on { animation: none; }
+  .mic.on {
+    animation: none;
+  }
 }
 </style>

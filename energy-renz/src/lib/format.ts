@@ -9,7 +9,7 @@ export const centsPerKwh = (eurPerMwh: number) => eurPerMwh / 10
 
 /** Prijsniveau (0 = goedkoopst, 1 = duurst) in gewone woorden, met de bijhorende kleurtoon */
 export function priceTone(level: number): { word: string, tone: 'good' | 'mid' | 'bad' } {
-  if (level < 0.33) return { word: 'goedkoop', tone: 'good' }
-  if (level > 0.66) return { word: 'duur', tone: 'bad' }
+  if (level < 0.33) { return { word: 'goedkoop', tone: 'good' } }
+  if (level > 0.66) { return { word: 'duur', tone: 'bad' } }
   return { word: 'gemiddeld', tone: 'mid' }
 }

@@ -31,7 +31,7 @@ export function towerRadius(y: number): number {
   for (let i = 1; i < TOWER_PROFILE.length; i++) {
     const [r1, y1] = TOWER_PROFILE[i]
     const [r0, y0] = TOWER_PROFILE[i - 1]
-    if (y <= y1) return r0 + ((y - y0) / (y1 - y0)) * (r1 - r0)
+    if (y <= y1) { return r0 + ((y - y0) / (y1 - y0)) * (r1 - r0) }
   }
   return TOWER_PROFILE.at(-1)![0]
 }
