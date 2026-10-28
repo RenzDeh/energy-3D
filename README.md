@@ -50,7 +50,10 @@ Ik liet de app na elke wijziging bouwen en testte zelf in de browser. Ik liet de
 
 ### Install dependencies
 
+De app staat in de map `energy-renz`; voer alle commando's daar uit.
+
 ```bash
+cd energy-renz
 npm install
 ```
 
